@@ -1,0 +1,321 @@
+﻿@using System.Text
+@inject IJSRuntime JS
+
+<div class="thermal-receipt-container">
+    @if (OrderData != null)
+    {
+        <div class="receipt-controls">
+            <button class="btn btn-primary" @onclick="PrintReceipt">
+                <i class="fas fa-print"></i> Print Sales Slip
+            </button>
+            <button class="btn btn-secondary" @onclick="TogglePreview">
+                <i class="fas fa-eye"></i> @(ShowPreview ? "Hide" : "Show") Preview
+            </button>
+        </div>
+
+        @if (ShowPreview)
+        {
+            <div class="receipt-preview">
+                <div class="thermal-receipt">
+                    @GetReceiptContent()
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="alert alert-info">No order data available</div>
+    }
+</div>
+
+<style>
+    .thermal-receipt-container {
+        margin: 1rem;
+    }
+
+    .receipt-controls {
+        margin-bottom: 1rem;
+    }
+
+    .receipt-preview {
+        border: 1px solid #ddd;
+        padding: 1rem;
+        background: white;
+        max-width: 80mm;
+        margin: 0 auto;
+    }
+
+    .thermal-receipt {
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        line-height: 1;
+        width: 80mm;
+        margin: 0 auto;
+        background: white;
+        padding: 5mm;
+    }
+
+    .receipt-header {
+        text-align: center;
+        margin-bottom: 8px;
+        border-bottom: 1px dashed #000;
+        padding-bottom: 8px;
+    }
+
+    .receipt-header h2 {
+        font-size: 16px;
+        margin-bottom: 4px;
+        font-weight: bold;
+    }
+
+    .section {
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px dashed #000;
+    }
+
+    .section-title {
+        font-weight: bold;
+        margin-bottom: 5px;
+        text-decoration: underline;
+    }
+
+    .details-grid div {
+        margin-bottom: 3px;
+    }
+
+    .order-items table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 10px;
+    }
+
+    .order-items th {
+        border-bottom: 1px dashed #000;
+        padding: 4px 2px;
+        text-align: left;
+        font-weight: bold;
+        font-size: 10px;
+    }
+
+    .order-items td {
+        padding: 3px 2px;
+        border-bottom: 1px dashed #eee;
+        font-size: 10px;
+        vertical-align: top;
+    }
+
+    .total-section {
+        margin-top: 10px;
+        padding-top: 8px;
+        border-top: 1px dashed #000;
+        text-align: center;
+        font-weight: bold;
+    }
+
+    .receipt-footer {
+        text-align: center;
+        margin-top: 15px;
+        padding-top: 8px;
+        border-top: 1px dashed #000;
+        font-style: italic;
+    }
+</style>
+
+<!-- PRINT STYLES - CORRECT BLazor SYNTAX -->
+<style>
+    @@media print {
+        body, html {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 80mm !important;
+            background: white !important;
+        }
+
+        .thermal-receipt-container {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 80mm !important;
+            margin: 0 !important;
+            padding: 5mm !important;
+            background: white !important;
+            font-family: 'Courier New', monospace !important;
+            font-size: 12px !important;
+            line-height: 1 !important;
+        }
+
+        .receipt-controls, 
+        .receipt-preview, 
+        .btn, 
+        .alert {
+            display: none !important;
+        }
+
+        .thermal-receipt {
+            display: block !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+        }
+    }
+</style>
+
+@code {
+    [Parameter] public OrderReceiptModel? OrderData { get; set; }
+    [Parameter] public EventCallback OnPrinted { get; set; }
+
+    private bool ShowPreview = true;
+
+    private MarkupString GetReceiptContent()
+    {
+        if (OrderData == null) return new MarkupString("");
+
+        var sb = new StringBuilder();
+
+        // Header
+        sb.AppendLine("<div class=\"receipt-header\">");
+        sb.AppendLine($"<h2>{EscapeHtml(OrderData.StoreName?.ToUpper() ?? "YOUR BAKERY")}</h2>");
+        sb.AppendLine($"<div>Order ID: ORD_{OrderData.OrderId.ToString().PadLeft(8, '0')}</div>");
+        sb.AppendLine("</div>");
+
+        // Order Details
+        sb.AppendLine("<div class=\"section\">");
+        sb.AppendLine("<div class=\"section-title\">ORDER DETAILS</div>");
+        sb.AppendLine("<div class=\"details-grid\">");
+        sb.AppendLine($"<div><strong>Order ID:</strong> ORD_{OrderData.OrderId.ToString().PadLeft(8, '0')}</div>");
+        sb.AppendLine($"<div><strong>Order Date:</strong> {OrderData.OrderDate:dd-MM-yyyy}</div>");
+        sb.AppendLine($"<div><strong>PickUp Date:</strong> {(OrderData.PickupDate.HasValue ? OrderData.PickupDate.Value.ToString("dd-MM-yyyy") : "-")}</div>");
+        sb.AppendLine($"<div><strong>Note:</strong> {EscapeHtml(OrderData.OrderNote ?? "-")}</div>");
+        sb.AppendLine("</div>");
+        sb.AppendLine("</div>");
+
+        // Customer Information
+        sb.AppendLine("<div class=\"section\">");
+        sb.AppendLine("<div class=\"section-title\">CUSTOMER INFORMATION</div>");
+        sb.AppendLine("<div class=\"details-grid\">");
+        sb.AppendLine($"<div><strong>Name:</strong> {EscapeHtml(OrderData.CustomerName)}</div>");
+        sb.AppendLine($"<div><strong>Phone:</strong> {EscapeHtml(OrderData.CustomerPhone)}</div>");
+        sb.AppendLine($"<div><strong>Address:</strong> {EscapeHtml(OrderData.CustomerAddress)}</div>");
+        sb.AppendLine("</div>");
+        sb.AppendLine("</div>");
+
+        // Order Items
+        sb.AppendLine("<div class=\"section\">");
+        sb.AppendLine("<div class=\"section-title\">ORDER ITEMS</div>");
+        sb.AppendLine("<div class=\"order-items\">");
+        sb.AppendLine("<table>");
+        sb.AppendLine("<thead>");
+        sb.AppendLine("<tr>");
+        sb.AppendLine("<th>Item</th>");
+        sb.AppendLine("<th>Size</th>");
+        sb.AppendLine("<th>Qty</th>");
+        sb.AppendLine("<th>Price</th>");
+        sb.AppendLine("</tr>");
+        sb.AppendLine("</thead>");
+        sb.AppendLine("<tbody>");
+
+        foreach (var item in OrderData.OrderItems)
+        {
+            var itemName = GetItemDisplayName(item);
+            var size = GetSizeDisplay(item);
+            var totalPrice = (item.UnitPrice + (item.ExtraPrice ?? 0)) * item.Quantity;
+            
+            sb.AppendLine("<tr>");
+            sb.AppendLine($"<td>{EscapeHtml(TruncateText(itemName, 15))}</td>");
+            sb.AppendLine($"<td>{EscapeHtml(size)}</td>");
+            sb.AppendLine($"<td>{item.Quantity}</td>");
+            sb.AppendLine($"<td>{FormatCurrency(totalPrice)}</td>");
+            sb.AppendLine("</tr>");
+
+            if (!string.IsNullOrEmpty(item.Accessory))
+            {
+                sb.AppendLine("<tr>");
+                sb.AppendLine($"<td colspan=\"3\">+ {EscapeHtml(TruncateText(item.Accessory, 20))}</td>");
+                sb.AppendLine($"<td>{FormatCurrency(item.ExtraPrice ?? 0)}</td>");
+                sb.AppendLine("</tr>");
+            }
+
+            if (!string.IsNullOrEmpty(item.CakeNote))
+            {
+                sb.AppendLine("<tr>");
+                sb.AppendLine($"<td colspan=\"4\">Note: {EscapeHtml(TruncateText(item.CakeNote, 35))}</td>");
+                sb.AppendLine("</tr>");
+            }
+        }
+
+        sb.AppendLine("</tbody>");
+        sb.AppendLine("</table>");
+        sb.AppendLine("</div>");
+        sb.AppendLine("</div>");
+
+        // Total
+        sb.AppendLine("<div class=\"total-section\">");
+        sb.AppendLine($"<div>TOTAL AMOUNT: <strong>{FormatCurrency(OrderData.TotalAmount)}</strong></div>");
+        sb.AppendLine("</div>");
+
+        // Footer
+        sb.AppendLine("<div class=\"receipt-footer\">");
+        sb.AppendLine("Thank you for your purchase!<br>");
+        sb.AppendLine("Life is short, eat more cake.");
+        sb.AppendLine("</div>");
+
+        return new MarkupString(sb.ToString());
+    }
+
+    private string GetItemDisplayName(OrderItemModel item)
+    {
+        if (item.CategoryId != 3 && item.CategoryId != 4)
+            return item.CategoryName ?? item.ProductItemName;
+        return item.ProductItemName;
+    }
+
+    private string GetSizeDisplay(OrderItemModel item)
+    {
+        var size = item.ProductSize.ToString();
+        
+        if (item.CategoryId == 1)
+            size += " inches";
+        else if (item.CategoryId == 2)
+            size += " peoples";
+            
+        return size;
+    }
+
+    private string FormatCurrency(decimal amount)
+    {
+        return amount.ToString("N0") + " MMK";
+    }
+
+    private string TruncateText(string text, int maxLength)
+    {
+        if (string.IsNullOrEmpty(text)) return "";
+        return text.Length > maxLength ? text.Substring(0, maxLength - 3) + "..." : text;
+    }
+
+    private string EscapeHtml(string text)
+    {
+        return System.Net.WebUtility.HtmlEncode(text ?? "");
+    }
+
+    private async Task PrintReceipt()
+{
+    try
+    {
+        await JS.InvokeVoidAsync("printThermalReceipt");
+        await OnPrinted.InvokeAsync();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Print error: {ex.Message}");
+        // Fallback to basic print
+        await JS.InvokeVoidAsync("window.print");
+    }
+}
+
+    private void TogglePreview()
+    {
+        ShowPreview = !ShowPreview;
+    }
+}

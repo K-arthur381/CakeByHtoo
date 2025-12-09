@@ -1,0 +1,197 @@
+﻿@page "/Report"
+@inject Interfaces.IOrderRepo OrderRepo
+@inject Interfaces.ICategory CatRepo
+@using Microsoft.EntityFrameworkCore
+@inject NavigationManager Navigation
+
+<div class="container-sm mt-5 mb-5">
+<div class="cards-summary">
+    <div class="card card-summary">
+        <h3>@TotalOrders</h3>
+        <p>Total Orders</p>
+        <i class="fa fa-shopping-cart card-icon"></i>
+    </div>
+
+    <div class="card card-summary">
+        <h3>@InPersonOrders</h3>
+        <p>In Person</p>
+        <i class="fa fa-users card-icon"></i>
+    </div>
+
+    <div class="card card-summary">
+        <h3>@DeliveryOrders</h3>
+        <p>Delivery</p>
+        <i class="fa fa-users card-icon"></i>
+    </div>
+
+    <div class="card card-summary">
+        <h3>@TotalRevenue.ToString("N0") MMK</h3>
+        <p>Total Revenue</p>
+        <i class="fa fa-money card-icon"></i>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filters">
+   
+    <input type="date" @bind="StartDate" />
+    <input type="date" @bind="EndDate" />
+    <input type="search" placeholder="Search Name,Ph,OrderId" @bind="SearchName" @bind:event="oninput" />
+    <button class="btn btn-primary" @onclick="ApplyFilters">Filter</button>
+</div>
+
+<!-- Category Chips -->
+<div class="category-chips">
+    <button class="chip @(SelectedCategory == "All" ? "active" : "")" @onclick='() => SelectCategory("All")'>All</button>
+
+    @foreach (var cat in Categories)
+    {
+        <button class="chip @(SelectedCategory == cat.Name ? "active" : "")" @onclick="() => SelectCategory(cat.Name)">
+            @cat.Name
+        </button>
+    }
+</div>
+
+<!-- Order Cards -->
+<div class="order-cards">
+    @foreach (var order in PagedOrders)
+    {
+        <div class="order-card">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <span class="fw-bold">ORD_@order.OrderId.ToString("D8")</span>
+
+                    </div>
+
+                    <div class="dropdown">
+                        <!-- Completed: show UnDone button -->
+                        <button class="btn btn-sm btn-outline-danger rounded-pill px-3 shadow-sm"
+                                title="Revert to pending and review order"
+                                @onclick="() => UpdateOrderStatus(order.OrderId)">
+                            <i class="fa fa-undo me-1"></i> UnDone
+                        </button>
+                    
+                    </div>
+                </div>
+            <p><span class="order-label">Customer:</span> @order.CustomerName</p>
+            <p><span class="order-label">Phone:</span> @order.CustomerPhone</p>
+            <p><span class="order-label">Address:</span> @order.CustomerAddress</p>
+            <p><span class="order-label">Order Date:</span> @(order.OrderDate.ToString("dd-MM-yyyy") ?? "-")</p>
+            <p><span class="order-label">Pickup Date:</span> @(order.PickupDate?.ToString("dd-MM-yyyy") ?? "-")</p>
+            <p>
+                <span class="order-label">Delivery Status:</span>
+                <span class="badge-status @(order.DeliveryMethod=="Delivery"?"delivery":"in-person")">@order.DeliveryMethod</span>
+            </p>
+            <p>
+                <span class="order-label">Payment:</span>
+                    <span class="badge-status @(order.PaymentType=="Prepaid"?"prepaid":"fullpaid")">@order.PaymentType</span>
+            </p>
+                <button class="btn-back" @onclick="() => GotoOrderItemPage(order.OrderId)">
+                    <i class="fa fa-file-text-o"></i>
+                    View Invoice
+                </button>
+        </div>
+    }
+</div>
+
+<!-- Pagination -->
+<div class="pagination-wrapper mt-4 ms-3">
+    <button @onclick="PrevPage" class="prev" disabled="@IsFirstPage">Prev</button>
+    <span>Page @CurrentPage of @TotalPages</span>
+        <button @onclick="NextPage" class="next" disabled="@IsLastPage">Next</button>
+</div>
+</div>
+
+
+@code {
+    private List<Order> AllOrders = new();
+    private List<Order> FilteredOrders = new();
+    private List<Order> PagedOrders => FilteredOrders.Skip((CurrentPage - 1) * OrdersPerPage).Take(OrdersPerPage).ToList();
+
+    private string SearchName = string.Empty;
+    private DateTime StartDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime EndDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month,
+        DateTime.DaysInMonth(DateTime.Today.Year, DateTime.Today.Month));
+
+    private string SelectedCategory = "All";
+    private List<Category> Categories = new();
+
+    private int CurrentPage = 1;
+    private int OrdersPerPage = 9;
+    private int TotalPages => (int)Math.Ceiling((double)FilteredOrders.Count / OrdersPerPage);
+    private bool IsFirstPage => CurrentPage == 1;
+    private bool IsLastPage => CurrentPage == TotalPages;
+
+    // Summary
+    private int TotalOrders => FilteredOrders.Count;
+    private int InPersonOrders => FilteredOrders.Count(o => o.DeliveryMethod == "Person");
+    private int DeliveryOrders => FilteredOrders.Count(o => o.DeliveryMethod == "Delivery");
+    private decimal TotalRevenue => FilteredOrders.Sum(o => o.TotalAmount ?? 0);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Categories = await CatRepo.GetAllCategory();
+
+        AllOrders = await OrderRepo.GetAllCompleteOrders();
+
+
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        int searchOrderId;
+        bool isNumeric = int.TryParse(SearchName, out searchOrderId);
+
+        FilteredOrders = AllOrders
+            .Where(o =>
+                (string.IsNullOrWhiteSpace(SearchName)
+                || (isNumeric && o.OrderId == searchOrderId)   // compare as int
+                 || o.CustomerPhone.Contains(SearchName, StringComparison.OrdinalIgnoreCase)
+                || o.CustomerName.Contains(SearchName, StringComparison.OrdinalIgnoreCase)) &&
+              
+                o.OrderDate.Date >= StartDate.Date &&
+                o.OrderDate.Date <= EndDate.Date &&
+                (SelectedCategory == "All" || o.OrderItems.Any(oi => oi.ProductPrice.Product.Category.Name == SelectedCategory))
+            )
+            .ToList();
+
+        CurrentPage = 1;
+    }
+    private void GotoOrderItemPage(int orderId) => Navigation.NavigateTo($"/OrderCompleteItem/{orderId}");
+
+    private async Task UpdateOrderStatus(int orderId)
+    {
+        // Find the order in your local list
+        var order = FilteredOrders.FirstOrDefault(o => o.OrderId == orderId);
+        if (order != null)
+        {
+            order.Status = CakeByHtoo.Models.OrderStatus.InProgress;
+            //order.PaymentType = "fullpaid";
+            // Call repository or API to persist the change
+            await OrderRepo.UpdateOrder(order);
+
+            // Refresh UI
+            // Reload fresh orders from DB
+            AllOrders = await OrderRepo.GetAllCompleteOrders();
+            ApplyFilters();
+            StateHasChanged();
+        }
+    }
+
+    private void SelectCategory(string category)
+    {
+        SelectedCategory = category;
+        ApplyFilters();
+    }
+
+    private void PrevPage()
+    {
+        if (CurrentPage > 1) CurrentPage--;
+    }
+
+    private void NextPage()
+    {
+        if (CurrentPage < TotalPages) CurrentPage++;
+    }
+}

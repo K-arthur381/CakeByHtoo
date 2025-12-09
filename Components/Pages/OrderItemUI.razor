@@ -1,0 +1,299 @@
+﻿@page "/OrderItem/{OrderId:int}"
+@inject Interfaces.IOrderRepo OrderRepo
+@inject Interfaces.IPrintService PrintService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<div class="invoice-container">
+    @if (order == null)
+    {
+        <div class="text-center py-4">Loading...</div>
+    }
+    else
+    {
+        <!-- Back & Print Buttons Row -->
+        <div class="d-flex justify-content-between mb-3">
+            <button class="btn-back" @onclick="BackToOrderList">
+                <i class="fa fa-arrow-left me-2"></i> Back to Order List
+            </button>
+
+            <button class="btn-print" @onclick="PrintThermalReceipt">
+                <i class="fa fa-print me-2"></i> Print Sales Slip
+            </button>
+        </div>
+
+        <style>
+            .btn-print {
+                background: linear-gradient(135deg, #6a8cfa, #8fb3ff);
+                color: white;
+                border: none;
+                padding: 0.55rem 1.3rem;
+                border-radius: 0.6rem;
+                font-weight: 600;
+                font-size: 0.95rem;
+                box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+                transition: all 0.3s ease;
+            }
+            .btn-back {
+                background: linear-gradient(135deg, #fa6a84, #ff8fb3);
+                color: white;
+                border: none;
+                padding: 0.55rem 1.3rem;
+                border-radius: 0.6rem;
+                font-weight: 600;
+                font-size: 0.95rem;
+                box-shadow: 0 4px 12px rgba(250, 106, 132, 0.4);
+                transition: all 0.3s ease;
+            }
+
+                .btn-back i {
+                    vertical-align: middle;
+                }
+
+                .btn-back:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 16px rgba(250, 106, 132, 0.5);
+                    cursor: pointer;
+                }
+
+                .btn-back:active {
+                    transform: translateY(0);
+                    box-shadow: 0 4px 12px rgba(250, 106, 132, 0.4);
+                }
+        </style>
+
+
+        <!-- Your existing order details display -->
+        <div class="order-details-screen">
+            <div class="invoice-header">
+                <img src="img/LOGO.jpg" alt="Logo" style="max-width: 150px;">
+                <div class="invoice-title">Order ID: ORD_@order.OrderId.ToString("D8")</div>
+            </div>
+            <hr />
+
+            <!-- Order Details -->
+            <div class="section">
+                <div class="section-title"><i class="fa fa-file-text-o"></i> Order Details</div>
+                <div class="details-grid">
+                    <div><strong>Order ID:</strong> ORD_@order.OrderId.ToString("D8")</div>
+                    <div><strong>Order Date:</strong> @order.OrderDate.ToString("dd-MM-yyyy")</div>
+                    <div><strong>PickUp Date:</strong> @(order.PickupDate?.ToString("dd-MM-yyyy") ?? "ASAP")</div>
+                    <div><strong>Order Note:</strong> @order.OrderNote</div>
+                </div>
+            </div>
+
+            <!-- Customer Details -->
+            <div class="section">
+                <div class="section-title"><i class="fa fa-user"></i> Customer Information</div>
+                <div class="details-grid">
+                    <div><strong>Name:</strong> @order.CustomerName</div>
+                    <div><strong>Phone:</strong> @order.CustomerPhone</div>
+                    <div><strong>Address:</strong> @order.CustomerAddress</div>
+                </div>
+            </div>
+
+            <!-- Order Items -->
+            <div class="section">
+                <div class="section-title"><i class="fa fa-list"></i> Order Items</div>
+                <div class="order-items">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th> Image</th>
+                                <th> Name</th>
+                                <th>Size</th>
+                                <th>Color</th>
+                                <th>Flavour</th>
+                                <th>Accessory</th>
+                                <th>Notes</th>
+                                <th>Qty</th>
+                                <th>Unit Price</th>
+                                <th>Extra Price</th>
+                                <th>Total Price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in order.OrderItems)
+                            {
+                                <tr>
+                                    <td>
+                                        <img src="@GetImageSource(item.ImageData,item.ProductItem.FilePath)"
+                                             alt="@item.ProductItem.ProductItemName"
+                                             width="50"
+                                             style="cursor: pointer;"
+                                             @onclick="() => ShowImage(GetImageSource(item.ImageData,item.ProductItem.FilePath))" />
+                                    </td>
+                                    <td>
+                                        @if (item.ProductItem.Category.CategoryId != 3 && item.ProductItem.Category.CategoryId != 4)
+                                        {
+                                            @item.ProductItem.Category.Name
+                                        }
+                                        else
+                                        {
+                                            @item.ProductItem.ProductItemName
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (item.ProductPrice.ProductSize != null)
+                                        {
+                                            <span>
+                                                @item.ProductPrice.ProductSize.Size
+                                                @if (item.ProductItem.Category.CategoryId == 1)
+                                                {
+                                                    <span>&nbsp;inches</span>
+                                                }
+                                                else if (item.ProductItem.Category.CategoryId == 2)
+                                                {
+                                                    <span>&nbsp;peoples</span>
+                                                }
+                                            </span>
+                                        }
+
+
+                                    </td>
+                                    <td>
+                                        @if (item.ProductItem.Category.CategoryId == 1)
+                                        {
+                                            @item.Color
+                                        }
+                                        else
+                                        {
+                                            <span>&nbsp;</span>
+                                        }
+                                    </td>
+                                    
+                                    <td>
+                                        @if (item.ProductItem.Category.CategoryId != 3 && item.ProductItem.Category.CategoryId != 4)
+                                        {
+                                            @if (item.ProductPrice.Flavour != null)
+                                            {
+                                                @item.ProductPrice.Flavour.Name
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span>  </span>
+                                        }
+                                    </td>
+                                    <td>@item.Accessory</td>
+                                    <td>@item.CakeNote</td>
+                                    <td>@item.Quantity</td>
+                                    <td>@item.UnitPrice MMK</td>
+                                    <td>@item.ExtraPrice MMK</td>
+                                    <td>@((item.UnitPrice + (item.ExtraPrice ?? 0)) * item.Quantity) MMK</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Totals -->
+            <div class="total-section">
+                <div class="total-box">
+                    Total Amount:
+                    <strong>@order.TotalAmount?.ToString("N0") MMK</strong>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="invoice-footer">
+                Thank you for your purchase! 🍰<br>
+                Life is short, eat more cake.
+            </div>
+        </div>
+    }
+</div>
+@if (showImageModal)
+{
+    <div class="image-modal" @onclick="CloseImage">
+        <img src="@selectedImage" class="image-preview" />
+    </div>
+}
+@code {
+    [Parameter] public int OrderId { get; set; }
+    private Order order;
+    private string selectedImage;
+    private bool showImageModal = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        order = await OrderRepo.GetOrderById(OrderId);
+    }
+
+    private async Task PrintThermalReceipt()
+    {
+        try
+        {
+            // Prepare order data for JavaScript
+            var orderData = new OrderData
+                {
+                    storeName = "Cake By Htoo",
+                    orderId = order.OrderId,
+                    orderDate = order.OrderDate,
+                    pickupDate = order.PickupDate,
+                    orderNote = order.OrderNote,
+                    customerName = order.CustomerName,
+                    customerPhone = order.CustomerPhone,
+                    customerAddress = order.CustomerAddress,
+                    totalAmount = order.TotalAmount ?? 0,
+                    orderItems = order.OrderItems.Select(item => new OrderItemData
+                    {
+                        productItemName = item.ProductItem?.ProductItemName,
+                        categoryName = item.ProductItem?.Category.Name,
+                        categoryId = item.ProductItem?.Category.CategoryId,
+                        productSize = item.ProductPrice?.ProductSize?.Size ?? "",
+                        flavourName = item.ProductPrice?.Flavour?.Name ?? "",
+                        accessory = item.Accessory,
+                        cakeNote = item.CakeNote,
+                        quantity = item.Quantity,
+                        unitPrice = item.UnitPrice ?? 0,  // FIX: your model expects decimal, not decimal?
+                        extraPrice = item.ExtraPrice ?? 0
+                    }).ToList()
+                };
+
+                #if ANDROID
+                        PrintService.PrintReceipt(orderData);
+                #endif
+            // Try the main print function first
+            await JS.InvokeVoidAsync("printThermalReceipt", orderData);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Print error: {ex.Message}");
+            // Fallback to simple print
+            await JS.InvokeVoidAsync("alert", "Printing failed. Please try again.");
+        }
+    }
+    private void BackToOrderList()
+    {
+        if (order.Status == OrderStatus.Cancel)
+        {
+            Navigation.NavigateTo("/CancelOrderList");
+        }
+        else
+        {
+            Navigation.NavigateTo("/OrderList");
+        }
+    }
+
+    private string GetImageSource(byte[] imageData, string? FilePath)
+    {
+        if (imageData == null || imageData.Length == 0)
+            return FilePath?.Replace("\\", "/") ?? "";
+
+        var base64 = Convert.ToBase64String(imageData);
+        return $"data:image/jpeg;base64,{base64}";
+    }
+
+    private void ShowImage(string imgSrc)
+    {
+        selectedImage = imgSrc;
+        showImageModal = true;
+    }
+
+    private void CloseImage()
+    {
+        showImageModal = false;
+    }
+}

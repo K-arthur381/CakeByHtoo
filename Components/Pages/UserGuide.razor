@@ -1,0 +1,192 @@
+﻿@page "/UserGuide"
+@inject IJSRuntime JS
+
+<style>
+    body {
+        background-color: #f8f9fa;
+    }
+
+    .content {
+        padding: 30px;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .card img {
+        border-radius: 0.5rem;
+    }
+
+    .card {
+        margin-bottom: 30px;
+        border: none;
+        box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
+    }
+</style>
+
+<!-- Content -->
+<div class="content">
+    @* Intro *@
+    <section id="intro" class="mb-5">
+        <div class="card p-4">
+            <h3 class="mb-3">၁။ မိတ်ဆက်(Introduction)</h3>
+            <p><strong>This Bakery POS System</strong> သည် (Cake By Htoo) ဆိုင်တွင် 
+                အော်ဒါမှတ်သားခြင်း၊ ရောင်းအားစစ်ဆေးခြင်း၊ ငွေစာရင်းစစ်ခြင်းများအတွက်
+                အထောက်အကူပြုရန် ပြုလုပ်ထားသော စနစ်ဖြစ်ပါသည်။ 
+            </p>
+
+        </div>
+    </section>
+
+    @* Home *@
+    <section id="home" class="mb-5">
+        <div class="card p-4">
+            <h3 class="mb-3">၂။ မူလစာမျက်နှာ (Home Page)</h3>
+            <p>မုန့်များ၊ရေခဲမုန့်အော်ဒါများ၊ ဖျော်ရည်များ၊ အချိုပွဲများကို ကြည့်ရှုနိုင်ပါသည်။ <strong>Search</strong> နှင့် <strong>Filter</strong> ဖြင့်လည်း လွယ်ကူစွာ ရှာဖွေနိုင်ပါသည်။</p>
+            <img src="img/userguide/home.png" class="img-fluid" alt="Home Page">
+        </div>
+    </section>
+    @* Detail *@
+    <section id="detail" class="mb-5">
+        <div class="card p-4">
+            <h3 class="mb-3">၃။ အသေးစိတ်စာမျက်နှာ(Detail Page)</h3>
+            <p>မုန့်တစ်ခုပေါ်တွင် နှိပ်ပြီး အသေးစိတ်ကြည့်နိုင်ပါသည်။ <strong>Add to Cart</strong> ဖြင့် ဈေးခြင်းလှည်းထဲထည့်ပါ။</p>
+            <img src="img/userguide/cakedetail.png" class="img-fluid" alt="Detail Page">
+        </div>
+    </section>
+    @* Custom Cake *@
+    <section id="custom" class="mb-5">
+        <div class="card p-4">
+            <h3 class="mb-3">၄။ မိမိစိတ်ကြိုက်ဖန်တီးလိုသော ကိတ် (Custom Cake)</h3>
+            <p>Home Page ရှိ <strong>Custom Cake</strong>Button ကို နှိပ်ပြီး ကိတ်မုန့် ိDesign ,မုန့်အမျိုးအစား၊ အရွယ်အစား၊ အရသာ၊ အလှဆင်ပစ္စည်းနှင့် စာသား ထည့်နိုင်ပါသည်။</p>
+            <img src="img/userguide/customcakedetail.png" class="img-fluid" alt="Custom Cake Page">
+        </div>
+    </section>
+
+    @* Cart *@
+    <section id="cart" class="mb-5">
+        <div class="card p-4">
+            <h3 class="mb-3">၅။ ဈေးခြင်းလှည်း စာမျက်နှာ (ExmptyCart Page)</h3>
+            <p>Home Page ရှိ <strong>ဈေးခြင်းလှည်း</strong>Button ကို နှိပ်ပြီး ဝင်ရောက် နိုင်ပါသည်</p>
+            <p>သင်ရွေးထားသော ကိတ်မုန့်များ၊ဖျော်ရည်များ၊ အချိုပွဲများ ,ကို ရွေးချယ်ထည့်ရမှာ ဖစ်ပါတယ်။</p>
+            <img src="img/userguide/emptycart.png" class="img-fluid" alt="Cart Page">
+        </div>
+    </section>
+
+    @* Cart *@
+    <section id="cart" class="mb-5">
+        <div class="card p-4">
+            <h3 class="mb-3">၆။ ဈေးခြင်းလှည်း စာမျက်နှာ (Cart Page)</h3>
+            <p>သင်ရွေးထားသော ကိတ်မုန့်များ၊ဖျော်ရည်များ၊ အချိုပွဲများ ,ကို တွေ့ရမှာပဲ ဖစ်ပါတယ်။ ပမာဏပြောင်းခြင်း၊ ပယ်ဖျက်ခြင်းလုပ်နိုင်ပြီး အော်ဒါ မှာယူမည်ဆိုပါက <strong>Proceed to Checkout</strong> ကိုနှိပ်ပါ။</p>
+            <img src="img/userguide/cart.png" class="img-fluid" alt="Cart Page">
+        </div>
+    </section>
+
+    @* Checkout *@
+    <section id="checkout" class="mb-5">
+        <div class="card p-4">
+            <h3 class="mb-3">၇။ ငွေပေးချေမှုစာမျက်နှာ (Checkout Page)</h3>
+            <p>Order မှာသော Customer နာမည်၊ ဖုန်းနံပါတ်၊ လိပ်စာ၊ ထုတ်ယူမည့်နေ့ကို ဖြည့်ပြီး <strong>Place Order</strong> ကိုနှိပ်ပါ။</p>
+            <img src="img/userguide/checkout.png" class="img-fluid" alt="Checkout Page">
+        </div>
+    </section>
+
+    @* Order List *@
+    <section id="orderlist" class="mb-5">
+        <div class="card p-4">
+            <h3 class="mb-3">၈။ အော်ဒါစာရင်း (Order List)</h3>
+            <p>အော်ဒါများကို စာရင်းအဖြစ်ကြည့်နိုင်ပါသည်။ Order များကိုလည်း <strong>Cancel</strong> လုပ်နိုင်ပြီး 'Cancel'ပြီးအော်ဒါများသည် <strong>Bin(Cancel OrderList)</strong> သို့သွားပါသည်။</p>
+            <img src="img/userguide/orderlist.png" class="img-fluid" alt="Order List Page">
+        </div>
+    </section>
+
+    @* Bin *@
+    <section id="bin" class="mb-5">
+        <div class="card p-4">
+            <h3 class="mb-3">၉။ ဖျက်ထားသောအော်ဒါများ (Cancel Order Page)</h3>
+            <p>ဖျက်ပြီးသောအော်ဒါများကို <strong>Bin Page</strong> တွင် ပြန်ကြည့်နိုင်ပါသည်။<br /> ဆိုင်ရှင်သည် <strong>Delete </strong>button ဖြင့် ဖျက်နိုင်ပါသည်။(Permanently Delete ဖစ်သွားမှာပါ ,ပြန်ကြည့်လို့ မရနိုင်တော့ပါ)<br /></p>
+            <p>Cancel လုပ်ထားသော Order များကို <strong>Restore</strong> ပြန်လည် ပြန်ယူလို ့လဲ ရပါမည်(order မှာထားပီးမေ့နေလို့ အချိန်ကြာသွားပီးတော့ ပြန်လာယူနိုင်ချေ ရှိမလားလို့ပါ)</p>
+            <img src="img/userguide/cancelorder.png" class="img-fluid" alt="Bin Page">
+        </div>
+    </section>
+
+    @* Edit Order Detail *@
+    <section id="orderdetail" class="mb-5">
+        <div class="card p-4">
+            <h3 class="mb-3">၁၀။ အော်ဒါအချက်အလက် ပြန်လည် ပြင်ဆင်ခြင်း</h3>
+            <p><strong>Edit Button </strong>  နှိပ်ပီးနောက် အချက်အလက် များ ပြင်ဆင်နိုင်ပါသည်(Phone,order Note,PickUp Date များအား ပြန်လည့်ပြင်ဆင်နိုင်သည် )။</p>
+            <img src="img/userguide/orderEdit.png" class="img-fluid" alt="Order Detail View">
+        </div>
+    </section>
+
+    @* Order Detail *@
+    <section id="orderdetail" class="mb-5">
+        <div class="card p-4">
+            <h3 class="mb-3">၁၁။ အော်ဒါအသေးစိတ်နှင့် ပုံနှိပ်ခြင်း</h3>
+            <p><strong>View Detail</strong> ဖြင့် အော်ဒါအသေးစိတ်ကြည့်နိုင်ပြီး <strong>Sale Slip</strong> ကို (print)ပုံနှိပ်နိုင်ပါသည်။</p>
+            <img src="img/userguide/orderDetail.png" class="img-fluid" alt="Order Detail View">
+        </div>
+    </section>
+
+    @* Print *@
+    <section id="report" class="mb-5">
+        <div class="card p-4">
+            <h3 class="mb-3">၁၂။ (Print Page)</h3>
+            <p><strong>Print</strong>button နှိပ်ပီး ကိုထုတ်မည့် printer စက်အား ရွေးချယ်ပီး ကိုလိုချင်သော အတိုင်းအတာများကို ‌ေရွေးချယ် ပီး Sale Slip ထုတ်နိုင်ပါသည်(ျPrinter အမြဲ မရွေးချင်ရင် window 10 or 11,ရှိ ျျSystem တွင် default printer သတ်မှတ်နိုင်ပါသည်) </p>
+            <img src="img/userguide/print.png" class="img-fluid" alt="Report Page">
+        </div>
+    </section>
+
+    @* Report *@
+    <section id="report" class="mb-5">
+        <div class="card p-4">
+            <h3 class="mb-3">၁၃။ ရောင်းအားအစီရင်ခံစာ (Report Page)</h3>
+            <p><strong>Done</strong> အော်ဒါများကို Report တွင် ကြည့်နိုင်ပါသည်။ ရက်အလိုက်၊ လအလိုက်၊ နှစ်အလိုက် စစ်ထုတ်နိုင်ပါသည်။</p>
+            <img src="img/userguide/report.png" class="img-fluid" alt="Report Page">
+        </div>
+    </section>
+
+    @* Report *@
+    <section id="report" class="mb-5">
+        <div class="card p-4">
+            <h3 class="mb-3">၁၄။ ပစ္စည်းများ (Product Page)</h3>
+            <p>မုန့်များ၊ရေခဲမုန့်အော်ဒါများ၊ ဖျော်ရည်များ၊ အချိုပွဲများကို ကြည့်ရှုနိုင် / ပြင်နိုင် /ဖျက်နိုင်ပါသည်။။ မုန့်အသစ်များလဲ ထည့်နိုင်ပါသည်</p>
+            <img src="img/userguide/product.png" class="img-fluid" alt="Report Page">
+        </div>
+    </section>
+    
+
+    @* Management *@
+    <section id="management" class="mb-5">
+        <div class="card p-4">
+            <h3 class="mb-3">၁၅။ စီမံခန့်ခွဲမှု (Management)</h3>
+            <ul>
+                <li><h5>Catalog/Price Management</h5> - မုန့်အမျိုးအစားများ,ဈေးနှုန်းများ  ထည့်ခြင်း/ပြင်ခြင်း။</li>
+                <li><img src="img/userguide/catalog.png" class="img-fluid" alt="Report Page"> <br /></li>
+                <li><h5>Catalog/Price Detail</h5> - မုန့်အမျိုးအစားများ,ဈေးနှုန်းများ  အသေးစိတ်အချက်များ ကြည့်ခြင်း။</li>
+                   <li> <img src="img/userguide/catalogprice.png" class="img-fluid" alt="Report Page"> <br />
+                </li>
+                <li><h5>Catalog/Price Edit</h5> - မုန့်အမျိုးအစားများအတွက် flavor အလိုက် ဈေးနှုန်းများ သတ်မှတ်နိုင်ပါသည်။</li>
+                <li>
+                    <img src="img/userguide/EditCatalog.png" class="img-fluid" alt="Report Page"> <br />
+                </li>
+                <li><h5>Flavor Management</h5> - အရသာများ ထည့်ခြင်း/ပြင်ခြင်း။</li>
+                <li><img src="img/userguide/flavour.png" class="img-fluid" alt="Report Page"> <br /></li>
+                <li><h5>Size Management</h5> - မုန့်အရွယ်အစား ထည့်ခြင်း/ပြင်ခြင်း။</li>
+                <li><img src="img/userguide/size.png" class="img-fluid" alt="Report Page"></li>
+                <li><h5>Category Management</h5> - ပစ္စည်းအမျိုးအစား ထည့်ခြင်း/ပြင်ခြင်း။</li>
+                <li><img src="img/userguide/cat.png" class="img-fluid" alt="Report Page"></li>
+            </ul>
+            </div>
+    </section>
+
+    @* Tips *@
+    <section id="tips" class="mb-5">
+        <div class="card p-4">
+            <h3 class="mb-3">၁၆။ အသုံးပြုပုံ အကြံပြုချက်များ</h3>
+            <ul>
+                <li>အော်ဒါတင်မီ အချက်အလက်များကို မှန်/မမှန် သေချာစွာ  စစ်ဆေးပေးပါ။</li>                  
+                <li>(Category များ/Catalog များ / Product များ ) ကို မလိုအပ်ပဲ မဖျက်ပါနှင့် (သေချာစွာ သတိပြုပေးပါရန်)</li>
+            </ul>
+        </div>
+    </section>
+</div>

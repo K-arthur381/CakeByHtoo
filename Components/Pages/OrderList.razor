@@ -1,0 +1,694 @@
+﻿@page "/OrderList"
+@inject Interfaces.IOrderRepo OrderRepo
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@using System.Globalization
+
+<!-- Loading -->
+@if (isLoading)
+{
+    <div class="loading-overlay">
+        <div class="spinner"></div>
+    </div>
+}
+
+
+<!-- Toast Alert -->
+<div class="toast-container">
+    @if (showToast)
+    {
+        <div class="toast @toastType show">
+            @toastMessage
+            <button type="button" class="btn-close" @onclick="HideToast">&times;</button>
+        </div>
+    }
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal @(showDeleteModal ? "show d-block" : "")" tabindex="-1">
+    <div class="modal-dialog modal-center">
+        <div class="modal-content shadow-lg border-0 rounded-3">
+            <div class="modal-header border-0 justify-content-center">
+                <i class="fa fa-exclamation-triangle fa-2x text-warning"></i>
+                <h4 class="modal-title text-danger ml-2">Order Cancel Confirm </h4>
+            </div>
+            <div class="modal-body text-center">
+                <p class="fs-5 mb-0">Are you sure you want to cancel this order?</p>
+                <p class="text-muted mt-2">(You can find this order in Cancel-Order List and restore it later)</p>
+            </div>
+            <div class="modal-footer justify-content-center border-0">
+                <button class="btn btn-outline-secondary rounded-pill px-4" @onclick="CancelDelete">
+                    No
+                </button>
+                <button class="btn btn-danger rounded-pill px-4" @onclick="DeleteConfirmed">
+                    Yes,Cancel It
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@if (pagedOrders == null)
+{
+    <!-- Page Preloder -->
+    <div id="preloder">
+        <div class="loader"></div>
+    </div>
+}
+else
+{
+    <section class="orders-section py-4 mb-5">
+        <div class="container-fluid">
+            <div class="card shadow-lg border-0 rounded-4">
+                <!-- Header -->
+                <div class="card-header bg-white border-bottom py-3 rounded-top-4">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                        <!-- Search -->
+                        <div class="col-md-4">
+                           
+                           
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0">
+                                    <i class="fa fa-search text-muted"></i>
+                                </span>
+                                <input type="text" class="form-control border-start-0"
+                                       placeholder="Search by Order ID..."
+                                       @bind="SearchId" @bind:event="oninput" />
+                            </div>
+                        </div>
+
+                        <!-- Total Orders -->
+                        <h5 class="mb-0 fw-semibold" style="color:hotpink">
+                            Total Orders: <span class="fw-bold">@totalorder</span>
+                            |
+                            <a href="/CancelOrderList" class="btn-pink-modern">
+                                <i class="fa fa-ban text-danger"></i>     Cancel-OrderList
+
+                            </a>
+                        </h5>
+                    </div>
+                </div>
+
+                <!-- Desktop Table -->
+
+                <div class="container-fluid py-4 order-list-page">
+                  
+                    @if (pagedOrders == null)
+                    {
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="text-muted mt-3">Loading orders...</p>
+                        </div>
+                    }
+                    else if (!pagedOrders.Any())
+                    {
+                        <div class="text-center py-5">
+                            <h5 class="fw-bold text-secondary mb-2">No Orders Found</h5>
+                            <p class="text-muted mb-4">You haven’t placed any orders yet.</p>
+                            <a href="/" class="btn btn-outline-primary rounded-pill px-4">
+                                <i class="fa fa-home me-2"></i> Back to Home
+                            </a>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="row">
+                            @foreach (var order in pagedOrders)
+                            {
+                                <div class="col-xl-6 col-lg-12 mb-4">
+                                    <div class="card order-card shadow-sm border-0 h-100">
+                                        <div class="card-body p-4">
+                                            <!-- Header -->
+                                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                                <div>
+                                                    <h5 class="fw-bold text-primary mb-1">
+                                                        ORD_@order.OrderId.ToString("D8")
+                                                    </h5>
+                                                    <div class="d-flex align-items-center flex-wrap">
+                                                        <span class="badge @GetPaymentBadge(order.PaymentType) px-3 py-2 me-2 mb-1">
+                                                            @order.PaymentType
+                                                        </span>&nbsp;
+                                                        <span class="text-muted small">
+                                                            <i class="fa fa-calendar me-1"></i>
+                                                            Pickup Date:@(order.PickupDate?.ToString("dd-MM-yyyy") ?? "-")
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div class="dropdown">
+                                                    <button class="btn btn-light btn-sm border  rounded-circle p-0"
+                                                            @onclick="() => ToggleDropdown(order.OrderId)"
+                                                            style="width:42px; height:42px;">
+                                                        <i class="fa fa-ellipsis-v fs-2"></i>
+                                                    </button> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                                    <ul class="dropdown-menu @GetDropdownClass(order.OrderId)">
+                                                        <li>
+                                                            <button class="dropdown-item d-flex align-items-center" @onclick="() => NavigateToEdit(order.OrderId)">
+                                                                <i class="fa fa-pencil me-2"></i> Edit
+                                                            </button>
+                                                        </li>
+                                                        <li>
+                                                            <button class="dropdown-item d-flex align-items-center" @onclick="() => GotoOrderItemPage(order.OrderId)">
+                                                                <i class="fa fa-file-text-o me-2"></i> View
+                                                            </button>
+                                                        </li>
+                                                        <li>
+                                                            <button class="dropdown-item d-flex align-items-center" @onclick="() => ShowDeleteModal(order.OrderId)">
+                                                                <i class="fa fa-trash-o fs-4"></i> Cancel
+                                                            </button>
+                                                        </li>
+
+                                                    </ul>
+                                                </div>
+                                               
+                                            </div>
+
+                                            <!-- Customer Info -->
+                                            <div class="customer-info mb-4 p-3 bg-light rounded">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <i class="fa fa-user text-muted me-2"></i>
+                                                    <span class="fw-semibold">@order.CustomerName</span>
+                                                </div>
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <i class="fa fa-phone text-muted me-2"></i>
+                                                    <span class="text-muted">@order.CustomerPhone</span>
+                                                </div>
+                                                <div class="d-flex align-items-start">
+                                                    <i class="fa fa-map-marker text-muted me-2 mt-1"></i>
+                                                    <span class="text-muted small">@order.CustomerAddress</span>
+                                                </div>
+                                            </div>
+
+                                            <!-- Financial Summary -->
+                                            <div class="financial-summary mb-4">
+                                                <div class="row g-3">
+                                                    <div class="col-md-4 col-12">
+                                                        <div class="summary-card text-center p-3 rounded bg-light h-100">
+                                                            <div class="text-muted small mb-1">Total</div>
+                                                            <div class="fw-bold text-dark h5">@order.TotalAmount?.ToString("N0") MMK</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4 col-12">
+                                                        <div class="summary-card text-center p-3 rounded bg-success text-white h-100">
+                                                            <div class="text-white-50 small mb-1">Paid</div>
+                                                            <div class="fw-bold h5">@order.PrepaidAmount?.ToString("N0") MMK</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4 col-12">
+                                                        <div class="summary-card text-center p-3 rounded bg-danger text-white h-100">
+                                                            <div class="text-white-50 small mb-1">Due</div>
+                                                            <div class="fw-bold h5">@order.RemainingAmount?.ToString("N0") MMK</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                @if (order.TotalAmount > 0)
+                                                {
+                                                    var paidPercentage = (order.PrepaidAmount / order.TotalAmount) * 100;
+                                                    <div class="mt-3">
+                                                        <div class="d-flex justify-content-between mb-1">
+                                                            <small class="text-muted">Payment Progress</small>
+                                                            <small class="text-muted">@(paidPercentage?.ToString("F0") ?? "0")% Paid</small>
+                                                        </div>
+                                                        <div class="progress" style="height: 8px;">
+                                                            <div class="progress-bar bg-success" style="width:@(paidPercentage?.ToString("F0") ?? "0")%"></div>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            </div>
+
+                                            <!-- Footer -->
+                                            <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                                                <span class="badge bg-light text-dark border">
+                                                    <i class="fa fa-truck me-1"></i> @order.DeliveryMethod
+                                                </span>
+                                                <button class="btn btn-success rounded-pill px-4 py-2"
+                                                        @onclick="() => UpdateOrderStatus(order.OrderId)">
+                                                    <i class="fa fa-check me-2"></i> Order Complete
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+              
+                <!-- Pagination -->
+                @if (totalPages > 1)
+                {
+                    <nav class="mt-3">
+                        <ul class="pagination justify-content-end">
+                            <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                                <button class="page-link" @onclick="GoFirst">First</button>
+                            </li>
+                            <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                                <button class="page-link" @onclick="PreviousPage">Previous</button>
+                            </li>
+
+                            @foreach (var pageIndex in GetVisiblePages())
+                            {
+                                <li class="page-item @(pageIndex == currentPage ? "active" : "")">
+                                    <button class="page-link" @onclick="() => GoToPage(pageIndex)">@pageIndex</button>
+                                </li>
+                            }
+
+                            <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                                <button class="page-link" @onclick="NextPage">Next</button>
+                            </li>
+                            <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                                <button class="page-link" @onclick="GoLast">Last</button>
+                            </li>
+                        </ul>
+                    </nav>
+                }
+            </div>
+        </div>
+    </section>
+
+}
+
+<style>
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.45);
+        z-index: 2000;
+    }
+
+    .order-list-page {
+        background-color: #f5f7fb;
+        min-height: 100vh;
+    }
+
+    .order-card {
+        transition: all 0.3s ease-in-out;
+        border-radius: 1rem;
+    }
+
+        .order-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+        }
+
+    .customer-info i {
+        width: 20px;
+        text-align: center;
+    }
+
+    .summary-card {
+        transition: transform 0.2s;
+    }
+
+        .summary-card:hover {
+            transform: scale(1.03);
+        }
+
+    .btn-success {
+        font-weight: 500;
+    }
+
+    .dropdown-menu {
+        border-radius: 0.75rem;
+        font-size: 0.9rem;
+    }
+
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 10px;
+    }
+
+    .progress-bar {
+        border-radius: 10px;
+    }
+    .icon-circle {
+        background: linear-gradient(135deg, hotpink, #ff85b3);
+        border-radius: 50%;
+        width: 90px;
+        height: 90px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        box-shadow: 0 5px 15px rgba(255, 105, 180, 0.35);
+    }
+
+        .icon-circle i {
+            font-size: 38px;
+        }
+
+    .btn-pink-modern {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: linear-gradient(135deg, hotpink, #ff7eb3);
+        color: white;
+        border: none;
+        border-radius: 50px;
+        padding: 12px 28px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.3s ease-in-out;
+        box-shadow: 0 6px 14px rgba(255, 105, 180, 0.3);
+    }
+
+        .btn-pink-modern:hover {
+            background: linear-gradient(135deg, #ff7eb3, hotpink);
+            box-shadow: 0 8px 20px rgba(255, 105, 180, 0.4);
+            transform: translateY(-3px);
+            color: white;
+        }
+
+    .btn-outline-pink {
+        border-color: hotpink;
+        color: hotpink;
+        transition: all 0.3s ease;
+    }
+
+        .btn-outline-pink:hover {
+            background-color: hotpink;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+    .fa-box-open {
+        opacity: 0.6;
+    }
+
+    .card.shadow-sm:hover {
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        transform: translateY(-3px);
+        transition: 0.3s;
+    }
+    /* Modal */
+    .modal {
+        display: none;
+        background-color: rgba(0,0,0,0.5);
+        transition: opacity 0.3s ease;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+        .modal.show.d-block {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+    .modal-dialog.modal-center {
+        position: sticky;
+        top: 10%;
+        left: 30%;
+        align-content: center;
+        max-width: 550px;
+        width: 100%;
+    }
+
+    .modal-content {
+        background-color: #ffffff;
+        /* border-radius: 15px;
+                        padding: 1rem; */
+    }
+
+    /* Toast */
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1055;
+    }
+
+    .toast {
+        padding: 14px 22px;
+        border-radius: 12px;
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        min-width: 220px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        opacity: 0;
+        transform: translateX(100%);
+        transition: all 0.3s ease;
+    }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+    .toast-success {
+        background: #28a745;
+    }
+
+    .toast-waming {
+        background: #17a2b8;
+    }
+
+    .toast-danger {
+        background: #dc3545;
+    }
+
+    .btn-close {
+        background: none;
+        border: none;
+        font-size: 18px;
+        color: white;
+        cursor: pointer;
+    }
+
+    /* Category Chips */
+    .category-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .chip {
+        padding: 8px 18px;
+        border-radius: 50px;
+        border: 1px solid #ccc;
+        background-color: #f9f9f9;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.25s ease;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+        .chip:hover {
+            background-color: #e9ecef;
+            transform: translateY(-2px);
+        }
+
+        .chip.active {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+            box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+        }
+
+</style>
+
+@code {
+    private List<Order> orders;
+    private List<Order> filteredOrders;
+    private List<Order> pagedOrders;
+    private int totalorder = 0;
+    private bool isLoading = false;
+
+    // Delete modal
+    private bool showDeleteModal = false;
+    private int OrderIdToDelete;
+    private bool showToast = false;
+    private string toastMessage;
+    private string toastType;
+    private int currentPage = 1;
+    private int pageSize = 6;
+    private int totalPages = 1;
+    private int maxPageButtons = 5;
+
+    private string _searchId;
+    private string SearchId
+    {
+        get => _searchId;
+        set
+        {
+            if (_searchId != value)
+            {
+                _searchId = value;
+                ApplySearch();
+            }
+        }
+    }
+
+    private async Task UpdateOrderStatus(int orderId)
+    {
+        isLoading = true;
+        // Find the order in your local list
+        var order = orders.FirstOrDefault(o => o.OrderId == orderId);
+        if (order == null)
+        {
+            isLoading = false;
+            ShowToast("Order Not Found!", "toast-waming");
+            return;
+        }
+        if (order != null)
+        {
+            order.Status = CakeByHtoo.Models.OrderStatus.Complete;
+            order.PaymentType = "fullpaid";
+            // Call repository or API to persist the change
+            await OrderRepo.UpdateOrder(order);
+
+            // Refresh UI
+            // Reload fresh orders from DB
+            orders = await OrderRepo.GetAllProgressOrders();
+            filteredOrders = orders;
+            isLoading = false;
+            ShowToast("🎉 Order Complete 🎉", "toast-success");
+            UpdatePagination();
+
+            StateHasChanged();
+        }
+    }
+
+
+    private HashSet<int> OpenDropdowns = new(); // track open dropdowns
+
+    protected override async Task OnInitializedAsync()
+    {
+        orders = await OrderRepo.GetAllProgressOrders();
+        filteredOrders = orders;
+        // totalorder = orders.Count();
+        UpdatePagination();
+
+        await JS.InvokeVoidAsync("registerOutsideClickHandler", DotNetObjectReference.Create(this));
+    }
+
+    [JSInvokable]
+    public void CloseAllDropdowns()
+    {
+        OpenDropdowns.Clear();
+        StateHasChanged();
+    }
+    private void ShowToast(string message, string type)
+    {
+        toastMessage = message;
+        toastType = type;
+        showToast = true;
+        StateHasChanged();
+        _ = Task.Delay(5000).ContinueWith(_ =>
+        {
+            showToast = false;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+    private void HideToast() => showToast = false;
+
+    private void ToggleDropdown(int orderId)
+    {
+        if (OpenDropdowns.Contains(orderId))
+            OpenDropdowns.Remove(orderId);
+        else
+            OpenDropdowns.Add(orderId);
+    }
+
+    private string GetDropdownClass(int orderId) => OpenDropdowns.Contains(orderId) ? "show" : "";
+
+    private void ApplySearch()
+    {
+        filteredOrders = string.IsNullOrWhiteSpace(SearchId)
+            ? orders
+            : orders.Where(o => o.OrderId.ToString().Contains(SearchId.Trim())).ToList();
+
+        currentPage = 1;
+        UpdatePagination();
+    }
+
+    private async void UpdatePagination()
+    {
+        totalorder = filteredOrders.Count();
+        totalPages = (int)Math.Ceiling((double)filteredOrders.Count / pageSize);
+        pagedOrders = filteredOrders
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+        await ScrollToTop();
+    }
+
+    private void ShowDeleteModal(int id)
+    {
+        OrderIdToDelete = id;
+        showDeleteModal = true;
+    }
+
+
+    private void CancelDelete()
+    {
+        OrderIdToDelete = 0;
+        showDeleteModal = false;
+    }
+
+    private async Task DeleteConfirmed()
+    {
+        if (OrderIdToDelete != 0)
+        {
+            // Find the order in your local list
+            var order = orders.FirstOrDefault(o => o.OrderId == OrderIdToDelete);
+            if (order != null)
+            {
+                order.Status = CakeByHtoo.Models.OrderStatus.Cancel;
+
+                // Call repository or API to persist the change
+                await OrderRepo.UpdateOrder(order);
+
+                // Refresh UI
+                // Reload fresh orders from DB
+                orders = await OrderRepo.GetAllProgressOrders();
+                filteredOrders = orders;
+                ShowToast("Cancel Order successfully(You can find this order in Cancel-Order List,and Restore it again)", "toast-waming");
+
+                UpdatePagination();
+                StateHasChanged();
+            }
+
+
+        }
+        showDeleteModal = false;
+        OrderIdToDelete = 0;
+    }
+
+
+    private void GoToPage(int page) { if (page >= 1 && page <= totalPages) { currentPage = page; UpdatePagination(); } }
+    private void PreviousPage() { if (currentPage > 1) { currentPage--; UpdatePagination(); } }
+    private void NextPage() { if (currentPage < totalPages) { currentPage++; UpdatePagination(); } }
+    private void GoFirst() { currentPage = 1; UpdatePagination(); }
+    private void GoLast() { currentPage = totalPages; UpdatePagination(); }
+    private List<int> GetVisiblePages()
+    {
+        int start = Math.Max(currentPage - maxPageButtons / 2, 1);
+        int end = start + maxPageButtons - 1;
+        if (end > totalPages) { end = totalPages; start = Math.Max(end - maxPageButtons + 1, 1); }
+        var pages = new List<int>();
+        for (int i = start; i <= end; i++) pages.Add(i);
+        return pages;
+    }
+    private async Task ScrollToTop() => await JS.InvokeVoidAsync("window.scrollTo", 0, 0);
+
+    private void NavigateToEdit(int orderId) => Navigation.NavigateTo($"/OrderEdit/{orderId}");
+    private void GotoOrderItemPage(int orderId) => Navigation.NavigateTo($"/OrderItem/{orderId}");
+
+    private string GetPaymentBadge(string paymentType) =>
+        paymentType?.ToLower() switch
+        {
+            "fullpaid" => "bg-success text-white",
+            "postpaid" => "bg-warning text-white",
+            _ => "bg-secondary text-white"
+        };
+}

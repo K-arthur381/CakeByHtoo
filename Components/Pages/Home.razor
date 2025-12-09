@@ -1,0 +1,312 @@
+﻿@page "/"
+@using CakeByHtoo.Models
+@inject Interfaces.IProductItem ProductItemRepo
+@inject Interfaces.ICategory CategoryRepo
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject NavigationManager NavManager
+
+<!-- Product Lists Section Begin -->
+<section class="shop spad">
+    <div class="container">
+        <div>
+            <div class="row mb-3">
+                <!-- Search Box -->
+                <div class="col-lg-7 col-md-7">
+                    <div class="shop__option__search">
+                        <form onsubmit="return false;">
+                            <input type="search" placeholder="Search"
+                                   @bind="SearchTerm"
+                                   @bind:event="oninput" />
+                            <button type="button" @onclick="ApplyFilters">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                <div class="col-lg-5 col-md-5 d-flex justify-content-end">
+                    <button class="custom-cake-btn" @onclick="GoCustomeCake">
+                        <i class="fa fa-plus mr-2 "></i>  Custom Cake 🍰
+                    </button>
+                </div>
+
+
+
+
+            </div>
+
+            <!-- Category Filter Chips -->
+            <div class="category-chips mb-3">
+                <button class="chip @(selectedCategoryId == null ? "active" : "")"
+                        @onclick='() => SelectCategory(0)'>
+                    All
+                </button>
+
+                @foreach (var cat in categories)
+                {
+                    <button class="chip @(selectedCategoryId == cat.CategoryId ? "active" : "")"
+                            @onclick="() => SelectCategory(cat.CategoryId)">
+                        @cat.Name
+                    </button>
+                }
+            </div>
+
+            <!-- Product Grid -->
+            <div class="row">
+                @if (pagedProducts == null)
+                {
+                    <p>Loading product-items...</p>
+                }
+                else if (pagedProducts.Count == 0)
+                {
+                    <p>No product-items found.</p>
+                }
+                else
+                {
+                    @foreach (var product in pagedProducts)
+                    {
+                        <div class="col-lg-3 col-md-6 col-sm-6 col-6 mb-4">
+                            <div class="product__item">
+                                <div class="product__item__pic"
+                                     style="background-image: url('@GetImageSource(product.ImageData,product.FilePath)');
+                                            background-size: cover;
+                                            background-position: center;">
+                                    <div class="product__label">
+                                        <span>@product.Category?.Name</span>
+                                    </div>
+                                </div>
+                                <div class="product__item__text">
+                                    <h6>
+                                        <a href="@($"/ProductDetail_ForCart/{product.ProductItemId}")">
+                                            @product.ProductItemName
+                                        </a>
+                                    </h6>
+                                    <div class="product__item__price">
+                                        <a href="@($"/ProductDetail_ForCart/{product.ProductItemId}")">
+                                            View Details
+                                        </a>
+                                    </div>
+                                    <div class="cart_add">
+                                        <a href="@($"/ProductDetail_ForCart/{product.ProductItemId}")">
+                                            View Details
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+
+            <!-- Pagination -->
+            @if (totalPages > 1)
+            {
+                <nav>
+                    <ul class="pagination justify-content-end">
+                        <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                            <button class="page-link" @onclick="GoFirst">First</button>
+                        </li>
+                        <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                            <button class="page-link" @onclick="PreviousPage">Previous</button>
+                        </li>
+
+                        @foreach (var pageIndex in GetVisiblePages())
+                        {
+                            <li class="page-item @(pageIndex == currentPage ? "active" : "")">
+                                <button class="page-link" @onclick="() => GoToPage(pageIndex)">
+                                    @pageIndex
+                                </button>
+                            </li>
+                        }
+
+                        <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                            <button class="page-link" @onclick="NextPage">Next</button>
+                        </li>
+                        <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                            <button class="page-link" @onclick="GoLast">Last</button>
+                        </li>
+                    </ul>
+                </nav>
+            }
+
+            <hr />
+        </div>
+    </div>
+</section>
+<!-- ProductItem Lists End -->
+<style>
+    .custom-cake-btn {
+        background: linear-gradient(135deg, #ff7eb3, #ff758c);
+        color: #fff;
+        font-weight: 600;
+        padding: 10px 28px;
+        border: none;
+        border-radius: 50px;
+        box-shadow: 0 4px 10px rgba(255, 118, 136, 0.4);
+        transition: all 0.3s ease;
+        letter-spacing: 0.5px;
+    }
+
+        .custom-cake-btn:hover {
+            background: linear-gradient(135deg, #ff97c1, #ff85a2);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 14px rgba(255, 118, 136, 0.5);
+        }
+
+        .custom-cake-btn:active {
+            transform: scale(0.96);
+            box-shadow: 0 2px 5px rgba(255, 118, 136, 0.3);
+        }
+
+</style>
+@code {
+    private List<ProductItem> productItems;
+    private List<ProductItem> filteredProducts;
+    private List<ProductItem> pagedProducts;
+    private List<Category> categories;
+
+    private string searchTerm = "";
+    private int? selectedCategoryId;
+    private int currentPage = 1;
+    private int pageSize = 8;
+    private int totalPages = 1;
+    private int maxPageButtons = 5;
+
+    private void SelectCategory(int category)
+    {
+        if (category == 0)
+            selectedCategoryId = null;  // All
+        else
+            selectedCategoryId = category;
+
+        ApplyFilters();
+    }
+
+    private string SearchTerm
+    {
+        get => searchTerm;
+        set
+        {
+            if (searchTerm != value)
+            {
+                searchTerm = value;
+                ApplyFilters();
+            }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        categories = await CategoryRepo.GetAllCategory();
+        productItems = await ProductItemRepo.GetAllAsync();
+        filteredProducts = productItems;
+        UpdatePagination();
+    }
+
+    private void ApplyFilters()
+    {
+        IEnumerable<ProductItem> query = productItems;
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+            query = query.Where(p => p.ProductItemName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+
+        if (selectedCategoryId.HasValue)
+            query = query.Where(p => p.CategoryId == selectedCategoryId.Value);
+
+        filteredProducts = query.ToList();
+        currentPage = 1;
+        UpdatePagination();
+    }
+
+    private async Task GoCustomeCake()
+    {
+        NavManager.NavigateTo("/ProductDetail_ForCart/1");
+    }
+
+    private async void UpdatePagination()
+    {
+        totalPages = (int)Math.Ceiling((double)filteredProducts.Count / pageSize);
+        pagedProducts = filteredProducts
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+        await ScrollToTop();
+    }
+
+    private void GoToPage(int page)
+    {
+        if (page >= 1 && page <= totalPages)
+        {
+            currentPage = page;
+            UpdatePagination();
+        }
+    }
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+            UpdatePagination();
+        }
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+            UpdatePagination();
+        }
+    }
+
+    private void GoFirst()
+    {
+        currentPage = 1;
+        UpdatePagination();
+    }
+
+    private void GoLast()
+    {
+        currentPage = totalPages;
+        UpdatePagination();
+    }
+
+    private List<int> GetVisiblePages()
+    {
+        int start = Math.Max(currentPage - maxPageButtons / 2, 1);
+        int end = start + maxPageButtons - 1;
+
+        if (end > totalPages)
+        {
+            end = totalPages;
+            start = Math.Max(end - maxPageButtons + 1, 1);
+        }
+
+        var pages = new List<int>();
+        for (int i = start; i <= end; i++)
+            pages.Add(i);
+
+        return pages;
+    }
+    private async Task ScrollToTop()
+    {
+        await JS.InvokeVoidAsync("window.scrollTo", 0, 0);
+    }
+    private string GetImageSource(byte[] imageData,string? FilePath)
+    {
+        if (imageData == null || imageData.Length == 0)
+            return  FilePath.Replace("\\", "/");  // fallback image
+
+        var base64 = Convert.ToBase64String(imageData);
+        return $"data:image/jpeg;base64,{base64}";
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("initMainJs");
+        }
+    }
+}

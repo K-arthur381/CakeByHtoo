@@ -1,0 +1,343 @@
+﻿@page "/CheckOut"
+@inject Interfaces.ICart CartRepo
+@inject Interfaces.IOrderRepo OrderRepo
+@inject IJSRuntime JS
+@inject CommonService.CartStateService CartState
+@inject NavigationManager Nav
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Forms
+
+<!-- Loading -->
+@if (isLoading)
+{
+    <div class="loading-overlay">
+        <div class="spinner"></div>
+    </div>
+}
+
+<!-- Toast Alert -->
+<div class="toast-container">
+    @if (showToast)
+    {
+        <div class="toast @toastType show">
+            @toastMessage
+            <button type="button" class="btn-close" @onclick="HideToast">&times;</button>
+        </div>
+    }
+</div>
+
+@if (cartItems == null)
+{
+    <p>Loading cart...</p>
+}
+else if (!cartItems.Any())
+{
+    <div class="text-center my-5">
+        <h4>Your cart is empty</h4>
+        <a href="/" class="btn btn-primary mt-3">Back to Home</a>
+    </div>
+}
+else
+{
+    <section class="checkout spad">
+        <div class="container">
+            <div class="checkout__form">
+                <EditForm Model="checkoutModel" OnValidSubmit="PlaceOrder">
+                    <DataAnnotationsValidator />
+
+                    <div class="row">
+                        <!-- User Info -->
+                        <div class="col-lg-6 col-md-6">
+                            <h6 class="checkout__title">User Information</h6>
+
+                            <div class="checkout__input">
+                                <p>Name<span>*</span></p>
+                                <InputText class="checkout__input__add" @bind-Value="checkoutModel.CustomerName" />
+                                <ValidationMessage For="@(() => checkoutModel.CustomerName)" />
+
+                                <p>Phone<span>*</span></p>
+                                <InputText class="checkout__input__add" @bind-Value="checkoutModel.CustomerPhone" />
+                                <ValidationMessage For="@(() => checkoutModel.CustomerPhone)" />
+
+                                <p>Address<span>*</span></p>
+                                <InputText class="checkout__input__add" @bind-Value="checkoutModel.CustomerAddress" />
+                                <ValidationMessage For="@(() => checkoutModel.CustomerAddress)" />
+                            </div>
+
+                            <div class="row">
+                                <div class="col-lg-6">
+                                    <div class="checkout__input">
+                                        <p>Pick Up DATE<span>*</span></p>
+                                        <InputDate class="form-control" @bind-Value="checkoutModel.PickUpDate" />
+                                        <ValidationMessage For="@(() => checkoutModel.PickUpDate)" />
+                                    </div>
+                                </div>
+                                <div class="col-lg-6">
+                                    <div class="checkout__input">
+                                        <p>PickUp Type<span>*</span></p>
+                                        <InputSelect class="form-control" @bind-Value="checkoutModel.DeliveryMethod">
+                                            <option value="Person">Person</option>
+                                            <option value="Delivery">Delivery</option>
+                                        </InputSelect>
+                                        <ValidationMessage For="@(() => checkoutModel.DeliveryMethod)" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="checkout__input">
+                                <p>Order notes</p>
+                                <InputText class="checkout__input__add" @bind-Value="checkoutModel.OrderNotes" />
+                            </div>
+                        </div>
+
+                        <!-- Order Summary -->
+                        <div class="col-lg-6 col-md-6">
+                            <div class="checkout__order">
+                                <h6 class="order__title">Your order</h6>
+                                <div class="checkout__order__products">Product <span>Total</span></div>
+                                <ul class="checkout__total__products">
+                                    @foreach (var item in cartItems)
+                                    {
+                                        <li>
+                                            <img src="@GetImageSource(item.ImageData,item.ProductItem.FilePath)" alt="@item.ProductItem.ProductItemName" width="50">
+                                            <samp>@item.ProductPrice.Product.Category.Name</samp> x @item.Quantity
+                                            <span class="mt-3">@($"{item.SubTotal:N2} MMK")</span>
+                                        </li>
+                                    }
+                                </ul>
+                                <hr />
+
+                                <p>Payment Type<span>*</span></p>
+                                <InputRadioGroup @bind-Value="checkoutModel.PaymentType" class="d-flex gap-2" >
+                                    <InputRadio Value="PaymentType.PostPaid" /> Post Paid
+                                    <InputRadio Value="PaymentType.PrePaid" /> Pre Paid
+                                    <InputRadio Value="PaymentType.FullPaid" /> Full Paid
+                                </InputRadioGroup>
+                                <ValidationMessage For="@(() => checkoutModel.PaymentType)" />
+
+                                @if (checkoutModel.PaymentType == PaymentType.PrePaid)
+                                {
+                                    <div class="checkout__input mt-2">
+                                        <p>Pre-paid Amount<span>*</span></p>
+                                        <input type="number"
+                                               class="form-control"
+                                               @bind="checkoutModel.PrepaidAmount"                  
+                                               step="0.01"
+                                               min="0" />
+                                        <ValidationMessage For="@(() => checkoutModel.PrepaidAmount)" />
+                                    </div>
+                                }
+                                <hr />
+
+                                <ul class="checkout__total__all">
+                                    <li>Total Amount:<span>@($"{TotalAmount:N2} MMK")</span></li>
+                                    
+                                </ul>
+                                <button type="submit" class="primary-btn mt-3">PLACE ORDER</button>
+                            </div>
+                        </div>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </section>
+}
+
+<style>
+    .toast-container {
+        
+        ;
+        top: 20px;
+        right: 20px;
+        z-index: 1055;
+    }
+
+    .toast {
+        padding: 14px 22px;
+        border-radius: 12px;
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        min-width: 220px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        transition: all 0.3s ease;
+    }
+
+    .toast-success {
+        background: #28a745;
+    }
+
+    .toast-waming {
+        background: #ffc107;
+    }
+
+    .toast-danger {
+        background: #dc3545;
+    }
+</style>
+
+@code {
+    private bool showToast = false;
+    private string toastMessage;
+    private string toastType;
+    private bool isLoading = false;
+
+    private List<Cart> cartItems;
+    private CheckoutModel checkoutModel = new CheckoutModel();
+    private decimal TotalAmount;
+    private decimal prepaid=0;
+    private decimal RemainingBalance;
+
+    protected override async Task OnInitializedAsync()
+    {
+        cartItems = await CartRepo.GetAllCarts();
+        CartState.SetCartItems(cartItems);
+
+        TotalAmount = cartItems.Sum(c => (decimal)c.SubTotal);
+        checkoutModel.PaymentType = PaymentType.PostPaid;
+
+    }
+
+    private async Task PlaceOrder()
+    {
+        isLoading = true;
+        if (!cartItems.Any())
+        {
+            isLoading = false;
+            ShowToast("Cart is empty!", "toast-waming");
+            return;
+        }
+
+        if (checkoutModel.PaymentType == PaymentType.PrePaid)
+        {
+            prepaid = checkoutModel.PrepaidAmount;
+            if (prepaid<TotalAmount)
+            {
+                RemainingBalance = TotalAmount - prepaid;
+                if (RemainingBalance < 0) RemainingBalance = 0;
+            }
+            else
+            {
+                isLoading = false;
+                ShowToast("Invalid pre-paid amount. It must be less than total price.!", "toast-waming");
+                return;
+            }
+
+        }
+        else if (checkoutModel.PaymentType == PaymentType.PostPaid)
+        {
+            RemainingBalance = TotalAmount;
+        }
+        else if (checkoutModel.PaymentType == PaymentType.FullPaid)
+        {
+            prepaid = TotalAmount;
+            RemainingBalance = 0;
+        }
+
+        var order = new CakeByHtoo.Models.Order
+            {
+                CustomerName = checkoutModel.CustomerName,
+                CustomerPhone = checkoutModel.CustomerPhone,
+                CustomerAddress = checkoutModel.CustomerAddress,
+                OrderNote = checkoutModel.OrderNotes,
+                OrderDate = DateTime.Now,
+                PickupDate = checkoutModel.PickUpDate,
+                DeliveryMethod = checkoutModel.DeliveryMethod,
+                PaymentType = checkoutModel.PaymentType.ToString(),
+                StatusId = (int)CakeByHtoo.Models.OrderStatus.Todo,
+                Status = CakeByHtoo.Models.OrderStatus.Todo,
+                TotalAmount = TotalAmount,
+                PrepaidAmount = prepaid,
+                RemainingAmount = RemainingBalance
+            };
+
+        foreach (var item in cartItems)
+        {
+            order.OrderItems.Add(new CakeByHtoo.Models.OrderItem
+                {
+                    ProductPriceId = item.ProductPriceId,
+                    ProductItemId = item.ProductItemId,
+                    Quantity = item.Quantity,
+                    Color = item.Color,
+                    Accessory = item.Accessory,
+                    CakeNote = item.CakeNote,
+                    ImageData = item.ImageData,
+                    ExtraPrice = item.ExtraPrice,
+                    UnitPrice = item.UnitPrice,
+                    SubTotal = ((item.ProductPrice?.UnitPrice ?? 1) * item.Quantity) + item.ExtraPrice + item.UnitPrice
+                });
+        }
+
+        await OrderRepo.AddOrder(order);
+
+        foreach (var item in cartItems)
+        {
+            await CartRepo.DeleteCart(item.CartId);
+        }
+
+        CartState.SetCartItems(new List<CakeByHtoo.Models.Cart>());
+        ShowToast("🎉 Order placed successfully! ✅ 🎉", "toast-success");
+     //   isLoading = false;
+    }
+
+    private void ShowToast(string message, string type)
+    {
+        toastMessage = message;
+        toastType = type;
+        showToast = true;
+        StateHasChanged();
+        _ = Task.Delay(1500).ContinueWith(_ =>
+        {
+            showToast = false;
+            InvokeAsync(StateHasChanged);
+            Nav.NavigateTo("/OrderList");
+        });
+    }
+
+    private void HideToast() => showToast = false;
+
+    private string GetImageSource(byte[] imageData, string? FilePath)
+    {
+        if (imageData == null || imageData.Length == 0)
+            return FilePath.Replace("\\", "/");
+
+        var base64 = Convert.ToBase64String(imageData);
+        return $"data:image/jpeg;base64,{base64}";
+    }
+
+    public class CheckoutModel
+    {
+        [Required(ErrorMessage = "Name is required")]
+        public string CustomerName { get; set; } = "-";
+
+        [Required(ErrorMessage = "Phone is required")]
+        public string CustomerPhone { get; set; } = "-";
+
+        [Required(ErrorMessage = "Address is required")]
+        public string CustomerAddress { get; set; } = "-";
+
+        public string OrderNotes { get; set; }
+
+        [Required(ErrorMessage = "PickUp Date is required")]
+        [DataType(DataType.Date)]
+        public DateTime PickUpDate { get; set; } = DateTime.Today;
+
+        [Required(ErrorMessage = "Delivery method is required")]
+        public string DeliveryMethod { get; set; } = "Person";
+
+        [Required(ErrorMessage = "Payment type is required")]
+        public PaymentType PaymentType { get; set; }
+
+        [Range(0, double.MaxValue, ErrorMessage = "Prepaid amount cannot be negative")]
+        public decimal PrepaidAmount { get; set; } = 0;
+    }
+
+    public enum PaymentType
+    {
+        PostPaid,
+        PrePaid,
+        FullPaid
+    }
+}

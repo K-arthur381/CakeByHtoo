@@ -1,0 +1,343 @@
+﻿@page "/UpdateCart/{CartId:int}"
+@inject Interfaces.ICart CartRepo
+@inject Interfaces.IProduct ProductRepo
+@inject IJSRuntime JS
+@inject CommonService.CartStateService CartState
+@inject NavigationManager Nav
+
+@if (cartItem == null || productCatalogs == null)
+{
+    <p>Loading cart item...</p>
+}
+else
+{
+    <section class="product-details spad">
+        <div class="container mb-5">
+            <div class="row">
+                <!-- Product Image -->
+                <div class="col-lg-6">
+                    <div class="product__details__img">
+                        <div class="product__details__big__img">
+                            @if (cartItem.ProductItem.ProductItemId == 1)
+                            {
+                                @if (!string.IsNullOrEmpty(uploadedImagePreview))
+                                {
+                                    <img class="big_img" src="@uploadedImagePreview" alt="Custom Cake Image" />
+                                }
+                                else
+                                {
+                                    <img class="big_img" src="@GetImageSource(cartItem.ImageData, cartItem.ProductItem.FilePath)" alt="Upload your cake design" />
+                                }
+
+                                <InputFile OnChange="OnImageUpload" class="form-control mt-3" accept="image/*" />
+
+                            }
+                            else
+                            {
+                                <img class="big_img" src="@GetImageSource(cartItem.ImageData, cartItem.ProductItem.FilePath)" alt="@cartItem.ProductItem.ProductItemName" />
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Product Options -->
+                <div class="col-lg-6">
+                    <div class="product__details__text">
+                        <div class="product__label">@SelectedProduct?.Category?.Name</div>
+                        <h4>@cartItem.ProductItem.ProductItemName</h4>
+
+                        @if (SelectedProduct.CategoryId == 1 || SelectedProduct.CategoryId == 2 )
+                        {
+                        <!-- Product Catalog -->
+                        <div class="mb-3">
+                            <label class="form-label d-block mb-2">Choose Catalog:</label>
+                            <select class="form-control" @onchange="e => SelectProduct(int.Parse(e.Value.ToString()))">
+                                @foreach (var p in productCatalogs)
+                                {
+                                    <option value="@p.ProductId" selected="@(SelectedProduct?.ProductId == p.ProductId)">
+                                        @p.Name
+                                    </option>
+                                }
+                            </select>
+                        </div>
+
+                        <!-- Color -->
+                        <div class="mb-3">
+                            <label class="form-label d-block mb-2">Choose Color:</label>
+                            <div class="color-circle-options d-flex gap-2">
+                                @foreach (var color in colors)
+                                {
+                                    <label class="color-circle @(SelectedColor == color ? "active" : "")">
+                                        <input type="radio" name="color" value="@color"
+                                               @onchange="e => { SelectedColor = e.Value.ToString(); UpdatePrice(); }"
+                                               checked="@((SelectedColor == color))" />
+                                        <span class="circle @color.ToLower()"></span>
+                                    </label>
+                                }
+                                <input type="text" class="form-control mt-2" placeholder="Other color" @bind="SelectedColor" @oninput="UpdatePrice" />
+                            </div>
+                        </div>
+
+                        <!-- Size -->
+                        <div class="mb-3">
+                            <label class="form-label d-block mb-2">Choose Size:</label>
+                            <div class="cake-size-options d-flex gap-2">
+                                @if (SelectedProduct != null)
+                                {
+                                    foreach (var size in productSizes)
+                                    {
+                                        <label class="size-radio @(SelectedSize == size.Size ? "active" : "")">
+                                            <input type="radio" name="cakeSize" value="@size.Size"
+                                                   @onchange="() => { ChangeSize(size.Size); UpdatePrice(); }"
+                                                   checked="@((SelectedSize == size.Size))" />
+                                            <span>
+                                                @size.Size
+                                                @if (SelectedProduct.CategoryId == 1)
+                                                {
+                                                    <text> inches</text>
+                                                }
+                                                else if (SelectedProduct.CategoryId == 2)
+                                                {
+                                                    <text> peoples</text>
+                                                }
+                                            </span>
+                                        </label>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Flavour -->
+                        <div class="mb-3">
+                            <label class="form-label mb-2">Choose Flavour:</label>
+                            @if (SelectedProduct != null)
+                            {
+                                <select class="form-control" value="@SelectedFlavourId" @onchange="OnFlavourChanged">
+                                    @foreach (var flavour in flavours)
+                                    {
+                                        <option value="@flavour.FlavourId">@flavour.Name</option>
+                                    }
+                                </select>
+                            }
+                        </div>
+
+                        <!-- Accessory & Note -->
+                        <div class="mb-3">
+                            <label>Accessory (Optional):</label>
+                            <textarea class="form-control" rows="2" @bind="Accessory" @oninput="UpdatePrice"></textarea>
+
+                            <label>Note:</label>
+                            <textarea class="form-control" rows="2" @bind="CakeNote"></textarea>
+                        </div>
+
+                        <!-- Extra Price -->
+                        <div class="mb-3">
+                            <label>Extra Price (Optional):</label>
+                            <input type="text" class="form-control" placeholder="Extra Price" @bind="ExtraPrice" @bind:event="oninput" />
+
+                        </div>
+                        }
+                        <!-- Quantity -->
+                        <div class="quantity mb-3 d-flex align-items-center">
+                            <label class="me-2">Quantity:</label>
+                            <div class="input-group" style="width: 40%">
+                                <button class="btn btn-outline-danger me-3" type="button" @onclick="() => { DecreaseQuantity(); UpdatePrice(); }"><i class="fa fa-minus"></i></button>
+                                <input type="number" class="form-control text-center" min="1" value="@Quantity" @oninput="QuantityChanged" />
+                                <button class="btn btn-outline-primary ms-3" type="button" @onclick="() => { IncreaseQuantity(); UpdatePrice(); }"><i class="fa fa-plus"></i></button>
+                            </div>
+                        </div>
+
+                        <!-- Prices -->
+                        <h5>Unit Price : @UnitPriceDisplay</h5>
+                        <h5>SubTotal Price : @SubTotalPriceDisplay</h5>
+
+                        <!-- Update Buttons -->
+                        <div class="product__details__option mt-3">
+                            <button class="primary-btn" @onclick="UpdateCartItem">Update Cart</button>
+                            <button class="primary-btn" @onclick="Cancel">Cancel</button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter] public int CartId { get; set; }
+    private Cart cartItem;
+    private List<Product> productCatalogs;
+    private Product SelectedProduct;
+    private List<ProductSize> productSizes = new();
+    private List<Flavour> flavours = new();
+    private List<string> colors = new() { "Red", "Green", "Blue", "Yellow", "White", "Purple", "Pink" };
+
+    private string SelectedColor;
+    private string Accessory;
+    private string CakeNote;
+    private string SelectedSize;
+    private int? SelectedFlavourId;
+    private decimal? ExtraPrice = 0;
+    private int Quantity;
+
+    private IBrowserFile uploadedFile;
+    private string uploadedImagePreview;
+    private byte[] uploadedImageBytes;
+
+    private decimal UnitPrice
+    {
+        get
+        {
+            if (SelectedProduct != null && SelectedProduct.CategoryId <= 2)
+            {
+                var price = SelectedProduct.ProductPrices?.FirstOrDefault(pp =>
+                    pp.FlavourId == SelectedFlavourId &&
+                    pp.ProductSizeId == productSizes.FirstOrDefault(ps => ps.Size.ToString() == SelectedSize)?.ProductSizeId
+                )?.UnitPrice;
+
+                return price ?? 0;
+            }
+
+            // For category > 3, always use ProductItem.UnitPrice
+            return cartItem?.UnitPrice ?? 0;
+        }
+    }
+
+    private string UnitPriceDisplay => $"{UnitPrice:N2} MMK";
+    private string SubTotalPriceDisplay => $"{((UnitPrice * Quantity) + (ExtraPrice ?? 0)):N2} MMK";
+    private void OnFlavourChanged(ChangeEventArgs e)
+    {
+        SelectedFlavourId = int.Parse(e.Value.ToString());
+        UpdatePrice();
+    }
+    private async Task OnExtraPriceChanged(decimal? value)
+    {
+        ExtraPrice = value;
+        UpdatePrice(); // refresh UI
+    }
+    private async Task OnImageUpload(InputFileChangeEventArgs e)
+    {
+        uploadedFile = e.File;
+        if (uploadedFile != null)
+        {
+            using var stream = uploadedFile.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024); // up to 5 MB
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            uploadedImageBytes = ms.ToArray();
+            uploadedImagePreview = $"data:{uploadedFile.ContentType};base64,{Convert.ToBase64String(uploadedImageBytes)}";
+        }
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        cartItem = await CartRepo.GetCartById(CartId);
+        if (cartItem == null) return;
+
+        // Load all products from same category
+        productCatalogs = await ProductRepo.GetProductsByCategory(cartItem.ProductPrice.Product.CategoryId);
+
+        // Preselect product
+        SelectedProduct = productCatalogs.FirstOrDefault(p => p.ProductId == cartItem.ProductPrice.ProductId);
+        if (SelectedProduct != null)
+        {
+            flavours = SelectedProduct.ProductPrices.Select(pp => pp.Flavour).Distinct().ToList();
+            productSizes = SelectedProduct.ProductPrices
+        .Where(pp => pp.ProductSize != null && pp.ProductSize.CategoryId == SelectedProduct.CategoryId)
+        .GroupBy(pp => pp.ProductSizeId)
+        .Select(g => g.First().ProductSize)
+        .OrderBy(ps => ps.Size)
+        .ToList();
+        }
+
+        // Fill existing cart values
+        SelectedColor = cartItem.Color;
+        Accessory = cartItem.Accessory;
+        CakeNote = cartItem.CakeNote;
+        SelectedSize = cartItem.ProductPrice.ProductSize.Size;
+        SelectedFlavourId = cartItem.ProductPrice.FlavourId;
+        ExtraPrice = cartItem.ExtraPrice;
+        Quantity = cartItem.Quantity;
+    }
+
+    private void SelectProduct(int productId)
+    {
+        SelectedProduct = productCatalogs.FirstOrDefault(p => p.ProductId == productId);
+        if (SelectedProduct != null)
+        {
+            flavours = SelectedProduct.ProductPrices.Select(pp => pp.Flavour).Distinct().ToList();
+            productSizes = SelectedProduct.ProductPrices.Select(pp => pp.ProductSize).Distinct().ToList();
+
+            if (!flavours.Any(f => f.FlavourId == SelectedFlavourId))
+                SelectedFlavourId = flavours.FirstOrDefault()?.FlavourId ?? 0;
+
+            if (!productSizes.Any(ps => ps.Size == SelectedSize))
+                SelectedSize = productSizes.FirstOrDefault()?.Size;
+        }
+
+        UpdatePrice();
+    }
+
+    private void ChangeSize(string size) => SelectedSize = size;
+    private void ChangeFlavour(int flavourId) => SelectedFlavourId = flavourId;
+    private void IncreaseQuantity() => Quantity++;
+    private void DecreaseQuantity() { if (Quantity > 1) Quantity--; }
+    private void QuantityChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var qty) && qty > 0)
+            Quantity = qty;
+        else
+            Quantity = 1;
+
+        UpdatePrice();
+    }
+
+    private void UpdatePrice() => StateHasChanged();
+
+    private string GetImageSource(byte[] imageData, string? FilePath)
+    {
+        if (imageData == null || imageData.Length == 0)
+            return FilePath.Replace("\\", "/");  // fallback image
+
+        var base64 = Convert.ToBase64String(imageData);
+        return $"data:image/jpeg;base64,{base64}";
+    }
+
+    private async Task UpdateCartItem()
+    {
+        var productPrice = SelectedProduct.ProductPrices.FirstOrDefault(pp =>
+            pp.FlavourId == SelectedFlavourId &&
+            pp.ProductSizeId == productSizes.FirstOrDefault(ps => ps.Size == SelectedSize)?.ProductSizeId
+        );
+
+        if (productPrice == null)
+        {
+            await JS.InvokeVoidAsync("alert", "Please select valid size and flavour.");
+            return;
+        }
+
+        // If product ID is 1 → use uploaded image, else → use original product image
+        var imageToSave =  cartItem.ImageData;
+        if (cartItem.ProductItem.ProductItemId == 1 && uploadedImageBytes!=null)
+        {
+            imageToSave = uploadedImageBytes;
+        }
+
+        cartItem.ProductPriceId = productPrice.ProductPriceId;
+        cartItem.Color = SelectedColor;
+        cartItem.Accessory = Accessory;
+        cartItem.CakeNote = CakeNote;
+        cartItem.ExtraPrice = ExtraPrice;
+        cartItem.Quantity = Quantity;
+        cartItem.ImageData = imageToSave;
+        cartItem.SubTotal = (UnitPrice * Quantity) + (ExtraPrice ?? 0);
+
+        await CartRepo.UpdateCart(cartItem);
+
+        var cartItems = await CartRepo.GetAllCarts();
+        CartState.SetCartItems(cartItems);
+
+        Nav.NavigateTo("/Cart");
+    }
+
+    private void Cancel() => Nav.NavigateTo("/Cart");
+}

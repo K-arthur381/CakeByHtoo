@@ -1,0 +1,581 @@
+﻿@page "/CancelOrderList"
+@inject Interfaces.IOrderRepo OrderRepo
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@using System.Globalization
+
+<!-- Toast Alert -->
+<div class="toast-container">
+    @if (showToast)
+    {
+        <div class="toast @toastType show">
+            @toastMessage
+            <button type="button" class="btn-close" @onclick="HideToast">&times;</button>
+        </div>
+    }
+</div>
+<!-- Delete Confirmation Modal -->
+<div class="modal @(showDeleteModal ? "show d-block" : "")" tabindex="-1">
+    <div class="modal-dialog modal-center">
+        <div class="modal-content shadow-lg border-0 rounded-3">
+            <div class="modal-header border-0 justify-content-center">
+                <i class="fa fa-exclamation-triangle fa-2x text-warning"></i>
+                <h4 class="modal-title text-danger ml-2">Confirm Deletion</h4>
+            </div>
+            <div class="modal-body text-center">
+                <p style="font-size:large">Are you sure you want to delete this item?</p>
+
+            </div>
+            <div class="modal-footer justify-content-center border-0">
+                <button class="btn btn-outline-secondary rounded-pill px-4" @onclick="CancelDelete">
+                    Cancel
+                </button>
+                <button class="btn btn-danger rounded-pill px-4" @onclick="DeleteConfirmed">
+                    Yes, Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@if (pagedOrders == null)
+{
+    <!-- Page Preloder -->
+    <div id="preloder">
+        <div class="loader"></div>
+    </div>
+}
+else
+{
+    <section class="orders-section py-4 mb-5">
+        <div class="container-fluid">
+            <div class="card shadow-lg border-0 rounded-4">
+                <!-- Header -->
+                <div class="card-header bg-white border-bottom py-3 rounded-top-4">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                       
+                        <!-- Search -->
+                        <form onsubmit="return false;">
+                            <div class="d-flex gap-2 align-items-center">
+                                <input type="search"
+                                       class="form-control me-2"
+                                       style="width:200px"
+                                       placeholder="Search by Order ID"
+                                       @bind="SearchId"
+                                       @bind:event="oninput" />
+                            </div>
+                        </form>
+                        <!-- Total Orders -->
+                        <h3 class="mb-0 fw-bold" style="color:hotpink">
+                            Cancel Order Lists
+
+                        </h3>
+                        <!-- Total Orders -->
+                        <h5 class="mb-0 fw-semibold" style="color:hotpink">
+                            Total Cancel-Orders: <span class="fw-bold">@totalorder</span>
+                            
+                        </h5>
+                    </div>
+                </div>
+
+                <!-- Desktop Table -->
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light" style="color:hotpink">
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Customer Info</th>
+                                <th>Total</th>
+                                <th>Payment Status</th>
+                                <th>Delivery Method</th>
+                                @*  <th>Order Status</th> *@
+                                <th>PickUp Date</th>
+                                <th>Options</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (pagedOrders == null)
+                            {
+                                <tr>
+                                    <td colspan="10" class="text-center py-4">Loading...</td>
+                                </tr>
+                            }
+                            else if (!pagedOrders.Any())
+                            {
+                                <tr>
+                                    <td colspan="10" class="text-center py-4">
+                                        <div class="no-orders d-flex align-items-center justify-content-center py-5">
+                                            <div class="no-orders-card text-center p-5 shadow-lg">
+                                                @*   <div class="mb-4" style="font-size: 4rem; opacity: 0.5;">
+                                        📦
+                                        </div> *@
+                                                <h3 class="fw-bold mb-3 text-dark">No Cancel-Orders</h3>
+                                                <p class="text-muted mb-4 fs-6">
+                                                    You haven’t placed any Cancel orders yet.
+                                                   
+                                                </p>
+                                                <a href="/OrderList" class="btn-pink-modern">
+                                                    📦 Back to OrderLists
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var order in pagedOrders)
+                                {
+                                    <tr>
+                                        <td><span class="fw-bold">ORD_@order.OrderId.ToString("D8")</span></td>
+                                        <td>
+                                            <p>@order.CustomerName</p>
+                                            <p>@order.CustomerPhone</p>
+                                            <p>@order.CustomerAddress</p>
+                                        </td>
+                                        <td class="fw-bold text-success">@order.TotalAmount?.ToString("N0") MMK</td>
+                                        <td>
+                                            <span class="badge @GetPaymentBadge(order.PaymentType) px-3 py-2">
+                                                @order.PaymentType
+                                            </span>
+                                        </td>
+                                        <td>@order.DeliveryMethod</td>
+                                        @*  <td>@order.Status</td> *@
+                                        <td>@(order.PickupDate?.ToString("dd-MM-yyyy") ?? "-")</td>
+                                        <td class="text-center">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <button class="btn-back me-2" @onclick="() => UpdateOrderStatus(order.OrderId)">
+                                                    Restore
+                                                </button>&nbsp;
+                                                <button class="btn-back me-2" @onclick="() => GotoOrderItemPage(order.OrderId)">
+                                                    View
+                                                </button>&nbsp;
+                                                <button class="btn btn-light btn-sm border  rounded-circle p-0"
+                                                        @onclick="() => ShowDeleteModal(order.OrderId)"
+                                                        style="width:42px; height:42px;color:red">
+                                                    <i class="fa fa-trash-o fs-4"></i>
+                                                </button>
+                                              
+                                                &nbsp;&nbsp;
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+              
+                <!-- Pagination -->
+                @if (totalPages > 1)
+                {
+                    <nav class="mt-3">
+                        <ul class="pagination justify-content-end">
+                            <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                                <button class="page-link" @onclick="GoFirst">First</button>
+                            </li>
+                            <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                                <button class="page-link" @onclick="PreviousPage">Previous</button>
+                            </li>
+
+                            @foreach (var pageIndex in GetVisiblePages())
+                            {
+                                <li class="page-item @(pageIndex == currentPage ? "active" : "")">
+                                    <button class="page-link" @onclick="() => GoToPage(pageIndex)">@pageIndex</button>
+                                </li>
+                            }
+
+                            <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                                <button class="page-link" @onclick="NextPage">Next</button>
+                            </li>
+                            <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                                <button class="page-link" @onclick="GoLast">Last</button>
+                            </li>
+                        </ul>
+                    </nav>
+                }
+            </div>
+        </div>
+    </section>
+
+}
+
+<style>
+    .no-orders {
+        min-height: 40vh;
+    @* background: linear-gradient(145deg, #fff5f8 0%, #ffe4ec 100%); *@ border-radius: 1rem;
+    }
+
+    .no-orders-card {
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(10px);
+        border-radius: 1.5rem;
+        max-width: 420px;
+        transition: all 0.3s ease-in-out;
+        border: 1px solid rgba(255, 182, 193, 0.2);
+    }
+
+        .no-orders-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(255, 105, 180, 0.25);
+        }
+
+    .icon-circle {
+        background: linear-gradient(135deg, hotpink, #ff85b3);
+        border-radius: 50%;
+        width: 90px;
+        height: 90px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        box-shadow: 0 5px 15px rgba(255, 105, 180, 0.35);
+    }
+
+        .icon-circle i {
+            font-size: 38px;
+        }
+
+    .btn-pink-modern {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: linear-gradient(135deg, hotpink, #ff7eb3);
+        color: white;
+        border: none;
+        border-radius: 50px;
+        padding: 12px 28px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.3s ease-in-out;
+        box-shadow: 0 6px 14px rgba(255, 105, 180, 0.3);
+    }
+
+        .btn-pink-modern:hover {
+            background: linear-gradient(135deg, #ff7eb3, hotpink);
+            box-shadow: 0 8px 20px rgba(255, 105, 180, 0.4);
+            transform: translateY(-3px);
+            color: white;
+        }
+
+    .btn-outline-pink {
+        border-color: hotpink;
+        color: hotpink;
+        transition: all 0.3s ease;
+    }
+
+        .btn-outline-pink:hover {
+            background-color: hotpink;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+    .fa-box-open {
+        opacity: 0.6;
+    }
+
+    .card.shadow-sm:hover {
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        transform: translateY(-3px);
+        transition: 0.3s;
+    }
+    /* Modal */
+    .modal {
+        display: none;
+        background-color: rgba(0,0,0,0.5);
+        transition: opacity 0.3s ease;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+        .modal.show.d-block {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+    .modal-dialog.modal-center {
+        position: sticky;
+        top: 10%;
+        left: 30%;
+        align-content: center;
+        max-width: 550px;
+        width: 100%;
+    }
+
+    .modal-content {
+        background-color: #ffffff;
+        /* border-radius: 15px;
+                        padding: 1rem; */
+    }
+
+    /* Toast */
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1055;
+    }
+
+    .toast {
+        padding: 14px 22px;
+        border-radius: 12px;
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        min-width: 220px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        opacity: 0;
+        transform: translateX(100%);
+        transition: all 0.3s ease;
+    }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+    .toast-success {
+        background: #28a745;
+    }
+
+    .toast-waming {
+        background: #ffc107;
+    }
+
+    .toast-danger {
+        background: #dc3545;
+    }
+
+    .btn-close {
+        background: none;
+        border: none;
+        font-size: 18px;
+        color: white;
+        cursor: pointer;
+    }
+
+    /* Category Chips */
+    .category-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .chip {
+        padding: 8px 18px;
+        border-radius: 50px;
+        border: 1px solid #ccc;
+        background-color: #f9f9f9;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.25s ease;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+        .chip:hover {
+            background-color: #e9ecef;
+            transform: translateY(-2px);
+        }
+
+        .chip.active {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+            box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+        }
+
+</style>
+
+@code {
+    private List<Order> orders;
+    private List<Order> filteredOrders;
+    private List<Order> pagedOrders;
+    private int totalorder = 0;
+    // Delete modal
+    private bool showDeleteModal = false;
+    private int OrderIdToDelete;
+    private bool showToast = false;
+    private string toastMessage;
+    private string toastType;
+    private int currentPage = 1;
+    private int pageSize = 5;
+    private int totalPages = 1;
+    private int maxPageButtons = 5;
+
+    private string _searchId;
+    private string SearchId
+    {
+        get => _searchId;
+        set
+        {
+            if (_searchId != value)
+            {
+                _searchId = value;
+                ApplySearch();
+            }
+        }
+    }
+
+    private async Task UpdateOrderStatus(int orderId)
+    {
+        // Find the order in your local list
+        var order = orders.FirstOrDefault(o => o.OrderId == orderId);
+        if (order != null)
+        {
+            order.Status = CakeByHtoo.Models.OrderStatus.InProgress;
+           // order.PaymentType = "fullpaid";
+            // Call repository or API to persist the change
+            await OrderRepo.UpdateOrder(order);
+
+            // Refresh UI
+            // Reload fresh orders from DB
+            orders = await OrderRepo.GetAllCancelOrders();
+            filteredOrders = orders;
+            ShowToast("Restore Order successfully", "toast-success");
+
+            UpdatePagination();
+
+            StateHasChanged();
+        }
+    }
+
+
+    private HashSet<int> OpenDropdowns = new(); // track open dropdowns
+
+    protected override async Task OnInitializedAsync()
+    {
+        orders = await OrderRepo.GetAllCancelOrders();
+        filteredOrders = orders;
+        // totalorder = orders.Count();
+        UpdatePagination();
+
+        await JS.InvokeVoidAsync("registerOutsideClickHandler", DotNetObjectReference.Create(this));
+    }
+
+    [JSInvokable]
+    public void CloseAllDropdowns()
+    {
+        OpenDropdowns.Clear();
+        StateHasChanged();
+    }
+    private void ShowToast(string message, string type)
+    {
+        toastMessage = message;
+        toastType = type;
+        showToast = true;
+        StateHasChanged();
+        _ = Task.Delay(3000).ContinueWith(_ =>
+        {
+            showToast = false;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+    private void HideToast() => showToast = false;
+
+    private void ToggleDropdown(int orderId)
+    {
+        if (OpenDropdowns.Contains(orderId))
+            OpenDropdowns.Remove(orderId);
+        else
+            OpenDropdowns.Add(orderId);
+    }
+
+    private string GetDropdownClass(int orderId) => OpenDropdowns.Contains(orderId) ? "show" : "";
+
+    private void ApplySearch()
+    {
+        filteredOrders = string.IsNullOrWhiteSpace(SearchId)
+            ? orders
+            : orders.Where(o => o.OrderId.ToString().Contains(SearchId.Trim())).ToList();
+
+        currentPage = 1;
+        UpdatePagination();
+    }
+
+    private async void UpdatePagination()
+    {
+        totalorder = filteredOrders.Count();
+        totalPages = (int)Math.Ceiling((double)filteredOrders.Count / pageSize);
+        pagedOrders = filteredOrders
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+        await ScrollToTop();
+    }
+
+    private void ShowDeleteModal(int id)
+    {
+        OrderIdToDelete = id;
+        showDeleteModal = true;
+    }
+
+
+    private void CancelDelete()
+    {
+        OrderIdToDelete = 0;
+        showDeleteModal = false;
+    }
+
+    private async Task DeleteConfirmed()
+    {
+        if (OrderIdToDelete != 0)
+        {
+            // Find the order in your local list
+            var order = orders.FirstOrDefault(o => o.OrderId == OrderIdToDelete);
+            if (order != null)
+            {
+                order.Status = CakeByHtoo.Models.OrderStatus.Cancel;
+
+                // Call repository or API to persist the change
+                await OrderRepo.DeleteOrder(order.OrderId);
+
+                // Refresh UI
+                // Reload fresh orders from DB
+                orders = await OrderRepo.GetAllCancelOrders();
+                filteredOrders = orders;
+
+                UpdatePagination();
+                ShowToast("Deleted successfully", "toast-danger");
+                StateHasChanged();
+            }
+
+
+        }
+        showDeleteModal = false;
+        OrderIdToDelete = 0;
+    }
+
+
+    private void GoToPage(int page) { if (page >= 1 && page <= totalPages) { currentPage = page; UpdatePagination(); } }
+    private void PreviousPage() { if (currentPage > 1) { currentPage--; UpdatePagination(); } }
+    private void NextPage() { if (currentPage < totalPages) { currentPage++; UpdatePagination(); } }
+    private void GoFirst() { currentPage = 1; UpdatePagination(); }
+    private void GoLast() { currentPage = totalPages; UpdatePagination(); }
+    private List<int> GetVisiblePages()
+    {
+        int start = Math.Max(currentPage - maxPageButtons / 2, 1);
+        int end = start + maxPageButtons - 1;
+        if (end > totalPages) { end = totalPages; start = Math.Max(end - maxPageButtons + 1, 1); }
+        var pages = new List<int>();
+        for (int i = start; i <= end; i++) pages.Add(i);
+        return pages;
+    }
+    private async Task ScrollToTop() => await JS.InvokeVoidAsync("window.scrollTo", 0, 0);
+
+    private void NavigateToEdit(int orderId) => Navigation.NavigateTo($"/OrderEdit/{orderId}");
+    private void GotoOrderItemPage(int orderId) => Navigation.NavigateTo($"/OrderItem/{orderId}");
+
+    private string GetPaymentBadge(string paymentType) =>
+        paymentType?.ToLower() switch
+        {
+            "fullpaid" => "bg-success text-white",
+            "postpaid" => "bg-warning text-white",
+            _ => "bg-secondary text-white"
+        };
+}

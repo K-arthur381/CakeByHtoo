@@ -1,0 +1,259 @@
+﻿@page "/OrderEdit/{OrderId:int}"
+@inject Interfaces.IOrderRepo OrderRepo
+@inject NavigationManager Navigation
+
+
+<!-- Toast Alert -->
+<div class="toast-container">
+    @if (showToast)
+    {
+        <div class="toast @toastType show">
+            @toastMessage
+            <button type="button" class="btn-close" @onclick="HideToast">&times;</button>
+        </div>
+    }
+</div>
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+            <div class="card shadow-lg border-0 rounded-4">
+                <div class="card-header bg-white border-bottom rounded-top-4 py-3">
+                    <h5 class="text-pink fw-bold mb-0">
+                        Edit Order - <span class="text-dark">ORD_@OrderId.ToString("D8")</span>
+                    </h5>
+                </div>
+
+                <div class="card-body p-4">
+                    @if (editOrder == null)
+                    {
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-pink" role="status"></div>
+                            <p class="mt-2">Loading order details...</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Customer Name</label>
+                                <input class="form-control rounded-3 shadow-sm"
+                                       @bind="editOrder.CustomerName" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Phone</label>
+                                <input class="form-control rounded-3 shadow-sm"
+                                       @bind="editOrder.CustomerPhone" />
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">Address</label>
+                                <textarea class="form-control rounded-3 shadow-sm" rows="2"
+                                          @bind="editOrder.CustomerAddress"></textarea>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">Order Note</label>
+                                <textarea class="form-control rounded-3 shadow-sm" rows="2"
+                                          @bind="editOrder.OrderNote"></textarea>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Payment</label>
+                                <InputSelect @bind-Value="editOrder.PaymentType" class="form-control rounded-3 shadow-sm">
+                                    @foreach (var type in Enum.GetValues<PaymentType>())
+                                    {
+                                        <option value="@type">@type</option>
+                                    }
+                                </InputSelect>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Prepaid Amount</label>
+                                <input type="number" class="form-control rounded-3 shadow-sm"
+                                       @bind="editOrder.PrepaidAmount" />
+                            </div>                         
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Pickup Date</label>
+                                <input type="date" class="form-control rounded-3 shadow-sm"
+                                       @bind="editOrder.PickupDate" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Delivery Status</label>
+                                <select class="form-control rounded-3 shadow-sm"
+                                        @bind="editOrder.DeliveryMethod">
+                                   
+                                        <option value="Person">Person</option>
+                                        <option value="Delivery">Delivery</option>
+                                   
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2 mt-4 me-5">
+                            <button class="btn btn-outline-secondary px-4 rounded-3 me-5"
+                                    @onclick="GoBack">
+                                <i class="fa fa-arrow-left"></i>   Back To OrderList
+                            </button>&nbsp;&nbsp;
+                            <button class="btn btn-pink px-4 rounded-3 shadow-sm"
+                                    @onclick="SaveChanges">
+                                <i class="fa fa-save"></i> Save Changes
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Toast */
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1055;
+    }
+
+    .toast {
+        padding: 14px 22px;
+        border-radius: 12px;
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        min-width: 420px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        opacity: 0;
+        transform: translateX(100%);
+        transition: all 0.3s ease;
+    }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+    .toast-success {
+        background: #28a745;
+    }
+
+    .toast-waming {
+        background: #ffc107;
+    }
+
+    .toast-danger {
+        background: #dc3545;
+    }
+
+    .text-pink {
+        color: hotpink;
+    }
+
+    .btn-close {
+        background: none;
+        border: none;
+        font-size: 18px;
+        color: white;
+        cursor: pointer;
+    }
+
+    .btn-pink {
+        background-color: hotpink;
+        color: white;
+        transition: all 0.2s ease-in-out;
+    }
+
+        .btn-pink:hover {
+            background-color: #e60073;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 105, 180, 0.4);
+        }
+
+    .form-control:focus, .form-select:focus {
+        border-color: hotpink;
+        box-shadow: 0 0 0 0.2rem rgba(255, 105, 180, 0.25);
+    }
+</style>
+
+@code {
+    // Toast
+    private bool showToast = false;
+    private string toastMessage;
+    private string toastType;
+
+    [Parameter] public int OrderId { get; set; }
+    private Order editOrder;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var order = await OrderRepo.GetOrderById(OrderId);
+        if (order != null)
+        {
+            // clone to avoid editing original before save
+            editOrder = new Order
+                {
+                    OrderId = order.OrderId,
+                    CustomerName = order.CustomerName,
+                    CustomerPhone = order.CustomerPhone,
+                    CustomerAddress = order.CustomerAddress,
+                    PickupDate = order.PickupDate,
+                    Status = order.Status,
+                    OrderNote=order.OrderNote,
+                    DeliveryMethod = order.DeliveryMethod,
+                    PaymentType = order.PaymentType,
+                    TotalAmount = order.TotalAmount,
+                    PrepaidAmount=order.PrepaidAmount
+                };
+        }
+    }
+
+    private async Task SaveChanges()
+    {
+        var existingOrder = await OrderRepo.GetOrderById(OrderId);
+        if (existingOrder != null)
+        {
+            existingOrder.CustomerName = editOrder.CustomerName;
+            existingOrder.CustomerPhone = editOrder.CustomerPhone;
+            existingOrder.CustomerAddress = editOrder.CustomerAddress;
+            existingOrder.PickupDate = editOrder.PickupDate;
+            existingOrder.OrderNote = editOrder.OrderNote;
+            existingOrder.DeliveryMethod = editOrder.DeliveryMethod;
+            existingOrder.PaymentType = editOrder.PaymentType;
+            existingOrder.PrepaidAmount = editOrder.PrepaidAmount;
+            existingOrder.RemainingAmount =existingOrder.TotalAmount-editOrder.PrepaidAmount;
+
+            await OrderRepo.UpdateOrder(existingOrder);
+        }
+        ShowToast(" 🎉 🎂 Order has been updated successfully ✅ 🎉", "toast-success");
+       
+    }
+
+    private void ShowToast(string message, string type)
+    {
+        toastMessage = message;
+        toastType = type;
+        showToast = true;
+        StateHasChanged();
+        _ = Task.Delay(500).ContinueWith(_ =>
+        {
+            showToast = false;
+            InvokeAsync(StateHasChanged);
+            Navigation.NavigateTo("/OrderList");
+        });
+    }
+    public enum PaymentType
+    {
+        PostPaid,
+        PrePaid,
+        FullPaid
+    }
+    private void HideToast() => showToast = false;
+
+    private void GoBack() => Navigation.NavigateTo("/OrderList");
+}

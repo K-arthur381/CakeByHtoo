@@ -1,0 +1,337 @@
+﻿@page "/ProductItemForm"
+@page "/ProductItemForm/{Id:int}"
+@using CakeByHtoo.Models
+@using Microsoft.AspNetCore.Components.Forms
+@using SixLabors.ImageSharp
+@using SixLabors.ImageSharp.Formats.Jpeg
+@using SixLabors.ImageSharp.Processing
+@inject Interfaces.IProductItem ProductItemRepo
+@inject Interfaces.ICategory CategoryRepo
+@inject IJSRuntime JS
+@inject NavigationManager NavManager
+
+<!-- Toast Alert -->
+<div class="toast-container">
+    @if (showToast)
+    {
+        <div class="toast @toastType show">
+            @toastMessage
+            <button type="button" class="btn-close" @onclick="HideToast">&times;</button>
+        </div>
+    }
+</div>
+
+<section class="wishlist spad">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 offset-lg-2">
+                <div class="wishlist__cart__table">
+
+                    <h4>@(editItem?.ProductItemId > 0 ? "Edit Product Item" : "Add New Product Item")</h4>
+                    <hr />
+
+                    <EditForm Model="editItem" OnValidSubmit="SaveProductItem" class="p-4">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="card shadow-sm rounded-3">
+                            <div class="card-body">
+
+                                <!-- Product Name -->
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Product Name</label>
+                                    <InputText @bind-Value="editItem.ProductItemName"
+                                               class="form-control"
+                                               placeholder="Enter product item name" />
+                                </div>
+
+                                <!-- Category -->
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Category</label>
+                                    <select @bind="editItem.CategoryId" class="form-control">
+                                        <option value="0">Select Category</option>
+                                        @foreach (var cat in categories)
+                                        {
+                                            <option value="@cat.CategoryId">@cat.Name</option>
+                                        }
+                                    </select>
+                                </div>
+
+                                <!-- Image Upload -->
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Upload Image</label>
+                                    <div class="p-3 border rounded bg-white d-flex flex-column align-items-start">
+                                        <InputFile OnChange="OnImageSelected" class="form-control mb-2" accept="image/*" />
+
+                                        @if (editItem.ImageData != null)
+                                        {
+                                            <img src="@GetImageSource(editItem.ImageData)"
+                                                 alt="Preview"
+                                                 class="shadow-sm border"
+                                                 style="width:100px;height:100px;object-fit:cover;border-radius:10px;" />
+                                        }
+                                    </div>
+                                </div>
+                                @if (editItem.CategoryId != 1 && editItem.CategoryId != 2 )
+                                {
+                                    <!-- Unit Price -->
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Unit Price</label>
+                                        <InputNumber @bind-Value="editItem.UnitPrice"
+                                        class="form-control"
+                                        placeholder="Enter product item name" />
+                                    </div>
+                                }
+                                <!-- Buttons -->
+                                <div class="d-flex justify-content-between">
+                                    <button type="button" class="btn btn-secondary px-4"
+                                            @onclick="() => GotoList()">
+                                        Cancel
+                                    </button>
+                                    <button type="submit" class="btn btn-success px-4 shadow-sm">
+                                        <i class="fa fa-check"></i> Save Change
+                                    </button>
+                                </div>
+
+                            </div>
+                        </div>
+                    </EditForm>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+    /* Modal */
+    .modal {
+        display: none;
+        background-color: rgba(0,0,0,0.5);
+        transition: opacity 0.3s ease;
+    }
+
+        .modal.show.d-block {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+    .modal-dialog.modal-center {
+        position: fixed;
+        top: 10%;
+        left: 30%;
+        align-content: center;
+        transform: translate(-15%, -85%);
+        max-width: 450px;
+        width: 90%;
+    }
+
+    .modal-content {
+        background-color: #ffffff;
+        /* border-radius: 15px;
+                        padding: 1rem; */
+    }
+
+    /* Toast */
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1055;
+    }
+
+    .toast {
+        padding: 14px 22px;
+        border-radius: 12px;
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        min-width: 220px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        opacity: 0;
+        transform: translateX(100%);
+        transition: all 0.3s ease;
+    }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+    .toast-success {
+        background: #28a745;
+    }
+
+    .toast-waming {
+        background: #ffc107;
+    }
+
+    .toast-danger {
+        background: #dc3545;
+    }
+
+    .btn-close {
+        background: none;
+        border: none;
+        font-size: 18px;
+        color: white;
+        cursor: pointer;
+    }
+
+    /* Category Chips */
+    .category-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .chip {
+        padding: 8px 18px;
+        border-radius: 50px;
+        border: 1px solid #ccc;
+        background-color: #f9f9f9;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.25s ease;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+        .chip:hover {
+            background-color: #e9ecef;
+            transform: translateY(-2px);
+        }
+
+        .chip.active {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+            box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+        }
+
+</style>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+    private bool showToast = false;
+    private string toastMessage;
+    private string toastType;
+    private ProductItem editItem = new();
+    private List<Category> categories = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        categories = await CategoryRepo.GetAllCategory();
+
+        if (Id.HasValue && Id.Value > 0)
+        {
+            var item = (await ProductItemRepo.GetAllAsync()).FirstOrDefault(p => p.ProductItemId == Id.Value);
+            if (item != null)
+                editItem = new ProductItem
+                {
+                    ProductItemId = item.ProductItemId,
+                    ProductItemName = item.ProductItemName,
+                    CategoryId = item.CategoryId,
+                    ImageData = item.ImageData,
+                    UnitPrice=item.UnitPrice
+                };
+        }
+    }
+    private void GotoList()
+    {
+        NavManager.NavigateTo($"/ProductItemDesignonlyshow");
+    }
+    private async Task SaveProductItem()
+    {
+        if (string.IsNullOrWhiteSpace(editItem.ProductItemName)
+            || editItem.CategoryId <= 0
+          || (editItem.ImageData == null && string.IsNullOrWhiteSpace(editItem.FilePath)))
+        {
+            ShowToastWarming("Please fill all fields", "toast-waming");
+            return;
+        }
+        // var duplicate = await ProductItemRepo.GetByNameAsync(editItem.ProductItemName);
+        // if (duplicate == true)
+        // {
+        //     ShowToastWarming("Alreadys Exits !!", "toast-waming");
+        //     return;
+        // }
+
+        if (editItem.ImageData != null && editItem.ImageData.Length > 0)
+        {
+            editItem.ImageData = CompressImage(editItem.ImageData, 70);
+        }
+
+
+        if (editItem.ProductItemId > 0)
+        {
+            await ProductItemRepo.UpdateAsync(editItem);
+            ShowToast("Updated successfully", "toast-success");
+        }
+        else
+        {
+            await ProductItemRepo.AddAsync(editItem);
+            ShowToast("Added successfully", "toast-success");
+        }
+
+       
+    }
+
+    private async Task OnImageSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            using var stream = file.OpenReadStream(5 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            editItem.ImageData = ms.ToArray();
+        }
+    }
+
+    private byte[] CompressImage(byte[] originalImage, int quality = 70)
+    {
+        using var inputStream = new MemoryStream(originalImage);
+        using var image = SixLabors.ImageSharp.Image.Load(inputStream);
+        using var outputStream = new MemoryStream();
+        var encoder = new JpegEncoder { Quality = quality };
+        image.Save(outputStream, encoder);
+        return outputStream.ToArray();
+    }
+
+    private void ShowToast(string message, string type)
+    {
+        toastMessage = message;
+        toastType = type;
+        showToast = true;
+        StateHasChanged();
+        _ = Task.Delay(1000).ContinueWith(_ =>
+        {
+            showToast = false;
+            InvokeAsync(StateHasChanged);
+            NavManager.NavigateTo("/ProductItemDesignonlyshow");
+           
+        });
+    }
+    private void ShowToastWarming(string message, string type)
+    {
+        toastMessage = message;
+        toastType = type;
+        showToast = true;
+        StateHasChanged();
+        _ = Task.Delay(1000).ContinueWith(_ =>
+        {
+            showToast = false;
+            InvokeAsync(StateHasChanged);
+        
+
+        });
+    }
+    private void HideToast() => showToast = false;
+
+    private string GetImageSource(byte[] imageData)
+    {
+        return imageData == null ? null : $"data:image/jpeg;base64,{Convert.ToBase64String(imageData)}";
+    }
+}
